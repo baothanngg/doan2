@@ -28,7 +28,7 @@ const PasswordCriteria = ({ password }) => {
   )
 }
 
-const PasswordStrength = ({ password }) => {
+const PasswordStrength = ({ password, onStrengthChange }) => {
   const getStrength = (pass) => {
     let strength = 0
     if (pass.length >= 6) strength++
@@ -38,6 +38,11 @@ const PasswordStrength = ({ password }) => {
     return strength
   }
   const strength = getStrength(password)
+
+  // Notify parent component about the strength change
+  React.useEffect(() => {
+    onStrengthChange(strength)
+  }, [strength, onStrengthChange])
 
   const getColor = (strength) => {
     if (strength == 0) return 'bg-red-500'

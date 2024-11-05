@@ -10,6 +10,8 @@ const SignUpPage = () => {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [passwordStrength, setPasswordStrength] = useState(0)
+  const [showPasswordWarning, setShowPasswordWarning] = useState(false)
 
   const navigate = useNavigate()
 
@@ -17,6 +19,11 @@ const SignUpPage = () => {
 
   const handleSignUp = async (e) => {
     e.preventDefault()
+
+    if (passwordStrength < 4) {
+      setShowPasswordWarning(true)
+      return
+    }
 
     try {
       await signup(email, password, name)
@@ -58,16 +65,27 @@ const SignUpPage = () => {
             type="password"
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value)
+              setShowPasswordWarning(false)
+            }}
           />
 
-          <PasswordStrength password={password} />
+          <PasswordStrength
+            password={password}
+            onStrengthChange={setPasswordStrength}
+          />
 
           {error && <p className="text-red-500 font-semibold mt-2">{error}</p>}
+          {showPasswordWarning && (
+            <p className="text-red-500 font-semibold mt-2">
+              Password must be strong to sign up.
+            </p>
+          )}
 
           <motion.button
             className="
-          mt-5 w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200
+          cursor-pointer mt-5 w-full py-3 px-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-lg shadow-lg hover:from-green-600 hover:to-emerald-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition duration-200
           "
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}

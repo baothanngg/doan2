@@ -3,24 +3,22 @@ import {
   PASSWORD_RESET_SUCCESS_TEMPLATE,
   VERIFICATION_EMAIL_TEMPLATE
 } from './emailTemplates.js'
-import { mailtrapClient, sender } from './mailtrap.config.js'
+import { transporter, sender } from './mailtrap.config.js'
 
 export const sendVerificationEmail = async (email, verificationToken) => {
-  const recipient = [{ email }]
-
   try {
-    const res = await mailtrapClient.send({
-      from: sender,
-      to: recipient,
+    const mailOptions = {
+      from: sender.email,
+      to: email,
       subject: 'Verify your email',
       html: VERIFICATION_EMAIL_TEMPLATE.replace(
         '{verificationCode}',
         verificationToken
-      ),
-      category: 'Email Verification'
-    })
+      )
+    }
 
-    console.log(res)
+    const res = await transporter.sendMail(mailOptions)
+    console.log('Verification email sent:', res)
   } catch (error) {
     console.log('Error sending verification email:', error)
     throw new Error(`Error sending verification email: ${error}`)
@@ -28,19 +26,16 @@ export const sendVerificationEmail = async (email, verificationToken) => {
 }
 
 export const sendWelcomeEmail = async (email, name) => {
-  const recipient = [{ email }]
   try {
-    console.log('Sending welcome email...')
-    const response = await mailtrapClient.send({
-      from: sender,
-      to: recipient,
-      template_uuid: '5b751572-7b56-4da1-89f1-0198c5a000c3',
-      template_variables: {
-        company_info_name: 'Certificate Manager',
-        name: name
-      }
-    })
-    console.log('Email sent:', response)
+    const mailOptions = {
+      from: sender.email,
+      to: email,
+      subject: 'Welcome to Certificate Manager',
+      html: `Hello ${name}, welcome to Certificate Manager!`
+    }
+
+    const res = await transporter.sendMail(mailOptions)
+    console.log('Welcome email sent:', res)
   } catch (error) {
     console.error('Error sending welcome email:', error)
     throw new Error(`Error sending welcome email: ${error}`)
@@ -48,32 +43,33 @@ export const sendWelcomeEmail = async (email, name) => {
 }
 
 export const sendPasswordResetEmail = async (email, resetURL) => {
-  const recipient = [{ email }]
-
   try {
-    const response = await mailtrapClient.send({
-      from: sender,
-      to: recipient,
+    const mailOptions = {
+      from: sender.email,
+      to: email,
       subject: 'Reset your password',
-      html: PASSWORD_RESET_REQUEST_TEMPLATE.replace('{resetURL}', resetURL),
-      category: 'Password Reset'
-    })
-  } catch (error) {}
+      html: PASSWORD_RESET_REQUEST_TEMPLATE.replace('{resetURL}', resetURL)
+    }
+
+    const res = await transporter.sendMail(mailOptions)
+    console.log('Password reset email sent:', res)
+  } catch (error) {
+    console.error('Error sending password reset email:', error)
+    throw new Error(`Error sending password reset email: ${error}`)
+  }
 }
 
 export const sendResetSuccessEmail = async (email) => {
-  const recipient = [{ email }]
-
   try {
-    const response = await mailtrapClient.send({
-      from: sender,
-      to: recipient,
+    const mailOptions = {
+      from: sender.email,
+      to: email,
       subject: 'Password reset successful',
-      html: PASSWORD_RESET_SUCCESS_TEMPLATE,
-      category: 'Password Reset'
-    })
+      html: PASSWORD_RESET_SUCCESS_TEMPLATE
+    }
 
-    console.log('Password reset successfully:', response)
+    const res = await transporter.sendMail(mailOptions)
+    console.log('Password reset success email sent:', res)
   } catch (error) {
     console.error('Error sending password reset success email:', error)
     throw new Error(`Error sending password reset success email: ${error}`)
