@@ -11,6 +11,7 @@ import DashBoardPage from './pages/DashBoardPage'
 import LoadingSpinner from './components/LoadingSpinner'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import Layout from './pages/Layout'
 
 // Chuyen huong nguoi dung
 const Redicrect = ({ children }) => {
@@ -78,7 +79,11 @@ function App() {
           path="/"
           element={
             <ProtectRoute>
-              <DashBoardPage />
+              <div className="absolute inset-0 bg-white z-10">
+                <Layout>
+                  <DashBoardPage />
+                </Layout>
+              </div>
             </ProtectRoute>
           }
         />
