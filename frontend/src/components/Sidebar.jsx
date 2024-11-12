@@ -60,7 +60,7 @@ const Sidebar = ({ children }) => {
             } `}
           >
             <div>
-              <h4 className="font-semibold">Bảo Thắng</h4>
+              <h4 className="font-semibold">Huỳnh Bảo Thắng</h4>
               <span className="text-xs text-gray-600">
                 baothanngg@gmail.com
               </span>
@@ -71,7 +71,7 @@ const Sidebar = ({ children }) => {
         {expanded ? (
           <div className={`border-t flex p-3 transition-all`}>
             <motion.button
-              className=" w-full cursor-pointer p-4  font-bold rounded-lg shadow-lg transition duration-200 bg-yellow-500"
+              className=" w-full cursor-pointer p-4 text-white  font-bold rounded-lg shadow-lg transition duration-200 bg-yellow-500"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={handleLogout}
@@ -93,7 +93,7 @@ export const SidebarItem = ({ icon, text, active, alert, to }) => {
     <Link to={to}>
       <li
         className={`relative flex items-center py-2 px-3 my-1 font-medium rounded-md cursor-pointer
-    transition-colors ${
+    transition-transform hover:scale-110 ${
       active
         ? ' bg-indigo-300 text-indigo-900'
         : 'hover:bg-indigo-50 text-gray-600'

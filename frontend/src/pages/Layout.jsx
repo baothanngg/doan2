@@ -1,34 +1,52 @@
 import Sidebar, { SidebarItem } from '../components/Sidebar'
 import {
   LifeBuoy,
-  Receipt,
-  Boxes,
   Package,
   UserCircle,
-  BarChart3,
   LayoutDashboard,
-  Settings
+  Settings,
+  UserRoundPen,
+  Award,
+  ShieldCheck
 } from 'lucide-react'
 const Layout = ({ children }) => {
   return (
-    <div>
-      <Sidebar>
+    <div className="flex">
+      <Sidebar className="flex w-1/4">
         <SidebarItem
           icon={<LayoutDashboard size={20} />}
-          text="Dashboard"
+          text="Tổng quan"
           to={'/'}
-          active
+          active={location.pathname === '/'}
         />
-        <SidebarItem icon={<Receipt size={20} />} text="Certificates" />
-        <SidebarItem icon={<Boxes size={20} />} text="Categories" />
-        <SidebarItem icon={<Package size={20} />} text="Products" alert />
-        <SidebarItem icon={<UserCircle size={20} />} text="Users" />
+        <SidebarItem
+          icon={<Award size={20} />}
+          text="Chứng chỉ"
+          to={'/certificates'}
+          active={location.pathname === '/certificates'}
+        />
+        <SidebarItem
+          icon={<ShieldCheck size={20} />}
+          text="Xác minh"
+          to={'/verify-certificates'}
+          active={location.pathname === '/verify-certificates'}
+        />
+        <SidebarItem
+          to={'/users'}
+          icon={<UserCircle size={20} />}
+          text="Người dùng"
+          active={location.pathname === '/users'}
+        />
         <hr className="my-3" />
-        <SidebarItem icon={<BarChart3 size={20} />} text="Reports" />
-        <SidebarItem icon={<Settings size={20} />} text="Settings" />
-        <SidebarItem icon={<LifeBuoy size={20} />} text="Help" />
+        <SidebarItem
+          icon={<UserRoundPen size={20} />}
+          text="Hồ sơ"
+          to={'/profile'}
+          active={location.pathname === '/profile'}
+        />
+        <SidebarItem icon={<Settings size={20} />} text="Cài đặt" />
       </Sidebar>
-      <div>{children}</div>
+      <div className="w-3/4">{children}</div>
     </div>
   )
 }

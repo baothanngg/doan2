@@ -12,6 +12,10 @@ import LoadingSpinner from './components/LoadingSpinner'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import Layout from './pages/Layout'
+import UserPage from './pages/UserPage'
+import ProfilePage from './pages/ProfilePage'
+import CeritificatePage from './pages/CeritificatePage'
+import VerifyPage from './pages/VerifyPage'
 
 // Chuyen huong nguoi dung
 const Redicrect = ({ children }) => {
@@ -87,6 +91,59 @@ function App() {
             </ProtectRoute>
           }
         />
+
+        <Route
+          path="/users"
+          element={
+            <ProtectRoute>
+              <div className="absolute inset-0 bg-white z-10">
+                <Layout>
+                  <UserPage />
+                </Layout>
+              </div>
+            </ProtectRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectRoute>
+              <div className="absolute inset-0 bg-white z-10">
+                <Layout>
+                  <ProfilePage />
+                </Layout>
+              </div>
+            </ProtectRoute>
+          }
+        />
+
+        <Route
+          path="/certificates"
+          element={
+            <ProtectRoute>
+              <div className="absolute inset-0 bg-white z-10">
+                <Layout>
+                  <CeritificatePage />
+                </Layout>
+              </div>
+            </ProtectRoute>
+          }
+        />
+
+        <Route
+          path="/verify-certificates"
+          element={
+            <ProtectRoute>
+              <div className="absolute inset-0 bg-white z-10">
+                <Layout>
+                  <VerifyPage />
+                </Layout>
+              </div>
+            </ProtectRoute>
+          }
+        />
+
         <Route
           path="/signup"
           element={
