@@ -16,6 +16,7 @@ import UserPage from './pages/UserPage'
 import ProfilePage from './pages/ProfilePage'
 import CeritificatePage from './pages/CeritificatePage'
 import VerifyPage from './pages/VerifyPage'
+import MyCertificatePage from './pages/MyCertificatePage'
 
 // Chuyen huong nguoi dung
 const Redicrect = ({ children }) => {
@@ -37,6 +38,24 @@ const ProtectRoute = ({ children }) => {
 
   if (!user.isVerified) {
     return <Navigate to="/verify-email" replace />
+  }
+
+  return children
+}
+
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, user } = useAuthStore()
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />
+  }
+
+  if (!user.isVerified) {
+    return <Navigate to="/verify-email" replace />
+  }
+
+  if (user.role !== 'admin') {
+    return <Navigate to="/my-certificates" replace />
   }
 
   return children
@@ -82,26 +101,26 @@ function App() {
         <Route
           path="/"
           element={
-            <ProtectRoute>
+            <AdminRoute>
               <div className="absolute inset-0 bg-white z-10">
                 <Layout>
                   <DashBoardPage />
                 </Layout>
               </div>
-            </ProtectRoute>
+            </AdminRoute>
           }
         />
 
         <Route
           path="/users"
           element={
-            <ProtectRoute>
+            <AdminRoute>
               <div className="absolute inset-0 bg-white z-10">
                 <Layout>
                   <UserPage />
                 </Layout>
               </div>
-            </ProtectRoute>
+            </AdminRoute>
           }
         />
 
@@ -121,10 +140,23 @@ function App() {
         <Route
           path="/certificates"
           element={
-            <ProtectRoute>
+            <AdminRoute>
               <div className="absolute inset-0 bg-white z-10">
                 <Layout>
                   <CeritificatePage />
+                </Layout>
+              </div>
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/my-certificates"
+          element={
+            <ProtectRoute>
+              <div className="absolute inset-0 bg-white z-10">
+                <Layout>
+                  <MyCertificatePage />
                 </Layout>
               </div>
             </ProtectRoute>

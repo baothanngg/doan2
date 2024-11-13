@@ -9,7 +9,7 @@ const SidebarContext = createContext()
 
 const Sidebar = ({ children }) => {
   const [expanded, setExpanded] = useState(true)
-  const { logout } = useAuthStore()
+  const { user, logout } = useAuthStore()
 
   const handleLogout = () => {
     logout()
@@ -60,10 +60,8 @@ const Sidebar = ({ children }) => {
             } `}
           >
             <div>
-              <h4 className="font-semibold">Huỳnh Bảo Thắng</h4>
-              <span className="text-xs text-gray-600">
-                baothanngg@gmail.com
-              </span>
+              <h4 className="font-semibold">{user?.name}</h4>
+              <span className="text-xs text-gray-600">{user?.email}</span>
             </div>
             {/* <MoreVertical size={20} /> */}
           </div>

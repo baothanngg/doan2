@@ -1,4 +1,4 @@
- import { User } from '../models/user.model.js'
+import { User } from '../models/user.model.js'
 import bcryptjs from 'bcryptjs'
 import { generateTokenAndSetCookie } from '../utils/generateTokenAndSetCookie.js'
 import {
@@ -117,9 +117,16 @@ export const login = async (req, res) => {
         .json({ success: false, message: 'Invalid password' })
     }
 
+    if (user.isLocked) {
+      return res
+        .status(403)
+        .json({ success: false, message: 'Your account is locked' })
+    }
+
     generateTokenAndSetCookie(res, user._id)
 
     user.lastLogin = new Date()
+    user.isActive = true
     await user.save()
 
     return res.status(200).json({
@@ -137,8 +144,21 @@ export const login = async (req, res) => {
 }
 
 export const logout = async (req, res) => {
-  res.clearCookie('token')
-  res.status(200).json({ success: true, message: 'Logged out successfully' })
+  try {
+    const user = await User.findById(req.userId)
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'User not found' })
+    }
+
+    user.isActive = false
+    await user.save()
+
+    res.clearCookie('token')
+    res.status(200).json({ success: true, message: 'Logged out successfully' })
+  } catch (error) {
+    console.log('Logout error:', error)
+    res.status(400).json({ success: false, message: error.message })
+  }
 }
 
 export const forgotPassword = async (req, res) => {
@@ -218,6 +238,103 @@ export const checkAuth = async (req, res) => {
     return res.status(200).json({ success: true, user })
   } catch (error) {
     console.log('Check auth error:', error)
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
+export const updatePassword = async (req, res) => {
+  const { currentPassword, newPassword } = req.body
+  const userId = req.userId
+
+  try {
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'User not found' })
+    }
+
+    const isPassword = await bcryptjs.compare(currentPassword, user.password)
+    if (!isPassword) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Current password is incorrect' })
+    }
+
+    const hashedPassword = await bcryptjs.hash(newPassword, 10)
+    user.password = hashedPassword
+    await user.save()
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
+    })
+  } catch (error) {
+    console.log('Update password error:', error)
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password')
+    const usersWithActivity = users.map((user) => {
+      if (user.isActive) {
+        return {
+          ...user._doc,
+          activity: 'Đang hoạt động'
+        }
+      } else {
+        const lastLogin = user.lastLogin || new Date()
+        const now = new Date()
+        const diffMs = now - lastLogin
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+        const diffHours = Math.floor(
+          (diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        )
+        const diffMinutes = Math.floor(
+          (diffMs % (1000 * 60 * 60)) / (1000 * 60)
+        )
+        let activity = ''
+
+        if (diffDays > 0) {
+          activity = `${diffDays} ngày trước`
+        } else if (diffHours > 0) {
+          activity = `${diffHours} giờ trước`
+        } else {
+          activity = `${diffMinutes} phút trước`
+        }
+
+        return {
+          ...user._doc,
+          activity
+        }
+      }
+    })
+    return res.status(200).json({ success: true, users: usersWithActivity })
+  } catch (error) {
+    console.log('Get all users error:', error)
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
+export const toggleUserLock = async (req, res) => {
+  const { userId } = req.params
+
+  try {
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'User not found' })
+    }
+
+    user.isLocked = !user.isLocked
+    await user.save()
+
+    return res.status(200).json({
+      success: true,
+      message: `User ${user.isLocked ? 'locked' : 'unlocked'} successfully`,
+      user
+    })
+  } catch (error) {
+    console.log('Toggle user lock error:', error)
     res.status(400).json({ success: false, message: error.message })
   }
 }

@@ -1,7 +1,55 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuthStore } from '../store/authStore'
+import toast from 'react-hot-toast'
+import Avatar from 'react-avatar'
 
 const ProfilePage = () => {
+  const { user, updatePassword } = useAuthStore()
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [newName, setNewName] = useState(user?.name || '')
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault()
+
+    if (newPassword !== confirmPassword) {
+      toast.error('Mật khẩu mới và xác nhận mật khẩu không khớp')
+      return
+    }
+
+    const passwordRegex =
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{6,}$/
+    if (!passwordRegex.test(newPassword)) {
+      toast.error(
+        'Mật khẩu phải có ít nhất 6 ký tự, bao gồm chữ hoa, chữ thường, số và ký tự đặc biệt'
+      )
+      return
+    }
+
+    try {
+      await updatePassword(currentPassword, newPassword)
+      toast.success('Đổi mật khẩu thành công')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (error) {
+      toast.error('Đổi mật khẩu thất bại')
+    }
+  }
+
+  const handleNameChange = async (e) => {
+    e.preventDefault()
+
+    try {
+      await updateName(newName)
+      toast.success('Cập nhật họ tên thành công')
+    } catch (error) {
+      toast.error('Cập nhật họ tên thất bại')
+    }
+  }
+
   return (
     <div className="flex flex-col h-screen p-8">
       <h1 className="text-2xl font-bold ">Hồ sơ người dùng</h1>
@@ -26,21 +74,25 @@ const ProfilePage = () => {
 
         {/* Avatar */}
         <div className="mx-auto w-32 h-32 relative -mt-16 border-4 border-white rounded-full overflow-hidden">
-          <img
-            className="object-cover object-center h-32"
-            src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-1.2.1&q=80&fm=jpg&crop=entropy&cs=tinysrgb&w=400&fit=max&ixid=eyJhcHBfaWQiOjE0NTg5fQ"
-            alt="User Avatar"
+          <Avatar
+            name={user?.name}
+            size="128"
+            round={true}
+            color={Avatar.getRandomColor('sitebase')}
           />
         </div>
 
         {/* Tên và email */}
         <div className="text-center mt-2">
-          <h2 className="font-semibold">Sarah Smith</h2>
-          <p className="text-gray-500">sarah.smith@example.com</p>
+          <h2 className="font-semibold">{user?.name}</h2>
+          <p className="text-gray-500">{user?.email}</p>
         </div>
 
         {/* Form chỉnh sửa thông tin */}
-        <form className="p-4 mx-8 mt-2 space-y-4">
+        <form
+          className="p-4 mx-8 mt-2 space-y-4"
+          onSubmit={handlePasswordChange}
+        >
           {/* Ô chỉnh sửa tên */}
           <div>
             <label className="block text-sm font-semibold text-gray-700">
@@ -49,7 +101,8 @@ const ProfilePage = () => {
             <input
               type="text"
               className="w-full border border-gray-300 rounded-lg px-4 py-2 mt-1 focus:outline-none focus:border-blue-500"
-              defaultValue="Sarah Smith"
+              defaultValue={user?.name}
+              disabled
             />
           </div>
 
@@ -61,7 +114,7 @@ const ProfilePage = () => {
             <input
               type="email"
               className="w-full border border-gray-300 rounded-lg px-4 py-2 mt-1 focus:outline-none focus:border-blue-500"
-              defaultValue="sarah.smith@example.com"
+              defaultValue={user?.email}
               disabled
             />
           </div>
@@ -73,8 +126,11 @@ const ProfilePage = () => {
             </label>
             <input
               type="password"
+              value={currentPassword}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 mt-1 focus:outline-none focus:border-blue-500"
               placeholder="Nhập mật khẩu hiện tại"
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
             />
           </div>
 
@@ -85,8 +141,11 @@ const ProfilePage = () => {
             </label>
             <input
               type="password"
+              value={newPassword}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 mt-1 focus:outline-none focus:border-blue-500"
               placeholder="Nhập mật khẩu mới"
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
             />
           </div>
 
@@ -97,8 +156,11 @@ const ProfilePage = () => {
             </label>
             <input
               type="password"
+              value={confirmPassword}
               className="w-full border border-gray-300 rounded-lg px-4 py-2 mt-1 focus:outline-none focus:border-blue-500"
               placeholder="Nhập lại mật khẩu mới"
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
             />
           </div>
 

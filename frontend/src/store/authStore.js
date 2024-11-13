@@ -9,6 +9,7 @@ export const useAuthStore = create((set) => ({
   user: null,
   isAuthenticated: false,
   error: null,
+  token: null,
   isLoading: false,
   isCheckingAuth: true,
   message: null,
@@ -69,7 +70,15 @@ export const useAuthStore = create((set) => ({
   logout: async () => {
     set({ isLoading: true, error: null })
     try {
-      await axios.post(`${API_URL}/logout`)
+      await axios.post(
+        `${API_URL}/logout`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        }
+      )
       set({ user: null, isAuthenticated: false, isLoading: false })
     } catch (error) {
       set({ error: 'Error logging out', isLoading: false })
@@ -117,6 +126,23 @@ export const useAuthStore = create((set) => ({
       set({
         isLoading: false,
         error: error.response.data.message || 'Error resetting password'
+      })
+      throw error
+    }
+  },
+
+  updatePassword: async (currentPassword, newPassword) => {
+    set({ isLoading: true, error: null })
+    try {
+      const response = await axios.post(`${API_URL}/update-password`, {
+        currentPassword,
+        newPassword
+      })
+      set({ message: response.data.message, isLoading: false })
+    } catch (error) {
+      set({
+        isLoading: false,
+        error: error.response.data.message || 'Error updating password'
       })
       throw error
     }
