@@ -51,7 +51,7 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen p-8">
+    <div className="flex flex-col p-8">
       <h1 className="text-2xl font-bold ">Hồ sơ người dùng</h1>
       <nav className="mb-4 text-sm text-gray-500">
         <Link to="/" className="hover:underline">
@@ -62,7 +62,7 @@ const ProfilePage = () => {
           Hồ sơ
         </Link>
       </nav>
-      <div className="max-w-2xl mx-4 sm:max-w-sm md:max-w-sm lg:max-w-sm xl:max-w-sm sm:mx-auto md:mx-auto lg:mx-auto xl:mx-auto  bg-white shadow-xl rounded-lg text-gray-900">
+      <div className="max-w-2xl mx-4 sm:max-w-sm md:max-w-sm lg:max-w-sm xl:max-w-sm sm:mx-auto md:mx-auto lg:mx-auto xl:mx-aut  bg-white shadow-xl rounded-lg text-gray-900">
         {/* Ảnh bìa */}
         <div className="rounded-t-lg h-32 overflow-hidden">
           <img

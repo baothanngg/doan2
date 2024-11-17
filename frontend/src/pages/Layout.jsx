@@ -78,7 +78,7 @@ const Layout = ({ children }) => {
           </>
         )}
       </Sidebar>
-      <div className="w-3/4">{children}</div>
+      <div className="w-3/4 max-h-screen overflow-auto">{children}</div>
     </div>
   )
 }

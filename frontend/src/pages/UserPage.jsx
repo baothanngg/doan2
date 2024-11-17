@@ -132,8 +132,9 @@ const UserPage = () => {
     elevation: 0,
     rowsPerPage: 5,
     rowsPerPageOptions: [5, 10],
-    tableBodyHeight: '500px',
-    tableBodyMaxHeight: '800px'
+    tableBodyHeight: '400px',
+    tableBodyMaxHeight: '800px',
+    scroll: true
   }
 
   const getMuiTheme = () =>
@@ -150,7 +151,7 @@ const UserPage = () => {
     })
 
   return (
-    <div className="flex flex-col h-screen p-8">
+    <div className="flex flex-col h-fit p-8 ">
       <h1 className="text-2xl font-bold mb-4">Quản lý người dùng</h1>
       <nav className="mb-4 text-sm text-gray-500">
         <Link to="/" className="hover:underline">

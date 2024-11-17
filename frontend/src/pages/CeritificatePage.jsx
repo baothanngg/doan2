@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import MUIDataTable from 'mui-datatables'
 import QRCode from 'qrcode'
@@ -52,65 +52,202 @@ const CertificatePage = () => {
 }
 
 const NewCertificate = () => {
+  const [users, setUsers] = useState([])
+  const [selectedUserId, setSelectedUserId] = useState('')
   const [name, setName] = useState('')
   const [course, setCourse] = useState('')
   const [date, setDate] = useState('')
   const [certificateUrl, setCertificateUrl] = useState('')
+  const [tempCertificateUrl, setTempCertificateUrl] = useState('')
   const [showPreview, setShowPreview] = useState(false)
+  const [storedCourseCode, setStoredCourseCode] = useState('') // Tạm lưu courseCode để cấp chứng chỉ sau
 
-  const drawCertificate = async () => {
-    const canvas = document.createElement('canvas')
-    const context = canvas.getContext('2d')
-    const image = new Image()
-    image.src = '/certificate_VLUTE.png'
-    image.onload = async () => {
-      canvas.width = image.width
-      canvas.height = image.height
-      context?.drawImage(image, 0, 0)
+  // Fetch danh sách người dùng
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/api/auth/users')
+        const data = await response.json()
+        setUsers(data.users)
+      } catch (error) {
+        console.error('Lỗi khi tải danh sách người dùng:', error)
+      }
+    }
+    fetchUsers()
+  }, [])
 
-      context.font = '130px Arial bold'
-      context.fillStyle = 'green'
-      context?.fillText(name, 150, 800)
+  useEffect(() => {
+    const selectedUser = users.find((user) => user._id === selectedUserId)
+    if (selectedUser) {
+      setName(selectedUser.name)
+    } else {
+      setName('')
+    }
+  }, [selectedUserId, users])
 
-      context.font = 'bold 40px Arial'
-      context.fillStyle = 'red'
-      context?.fillText(course, 750, 866)
+  // Hàm vẽ chứng chỉ
+  const drawCertificate = (courseCode, isPreview = false) => {
+    return new Promise((resolve, reject) => {
+      if (!courseCode) {
+        console.error('CourseCode chưa được cung cấp cho việc vẽ chứng chỉ.')
+        reject(new Error('CourseCode missing'))
+        return
+      }
 
-      context.font = 'bold 35px Arial'
-      context.fillStyle = 'black'
-      context?.fillText(`Ngày cấp: ${date}`, 150, 1000)
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+      const image = new Image()
+      image.src = '/certificate_VLUTE.png'
+      image.onload = async () => {
+        canvas.width = image.width
+        canvas.height = image.height
+        context?.drawImage(image, 0, 0)
 
-      const qrData = `${name} - ${course} - ${date}`
-      const qrCanvas = document.createElement('canvas')
-      await QRCode.toCanvas(qrCanvas, qrData, { width: 200 })
+        context.font = '130px Arial bold'
+        context.fillStyle = 'green'
+        context?.fillText(name, 150, 800)
 
-      context?.drawImage(qrCanvas, canvas.width - 850, canvas.height - 300)
+        context.font = 'bold 40px Arial'
+        context.fillStyle = 'red'
+        context?.fillText(course, 750, 866)
 
-      const dataUrl = canvas.toDataURL()
-      setCertificateUrl(dataUrl)
-      setShowPreview(true) // Mở phần xem trước khi nhấn "Xem Trước"
+        context.font = 'bold 35px Arial'
+        context.fillStyle = 'black'
+        context?.fillText(`Ngày cấp: ${date}`, 150, 1000)
+
+        context.font = 'bold 40px Arial'
+        context.fillStyle = 'black'
+        context?.fillText(courseCode, 1450, 95)
+
+        const qrData = `${name} - ${course} - ${date} - ${courseCode}`
+        const qrCanvas = document.createElement('canvas')
+        await QRCode.toCanvas(qrCanvas, qrData, { width: 200 })
+
+        context?.drawImage(qrCanvas, canvas.width - 850, canvas.height - 300)
+
+        const dataUrl = canvas.toDataURL()
+
+        if (isPreview) {
+          setTempCertificateUrl(dataUrl)
+        } else {
+          setCertificateUrl(dataUrl)
+        }
+        setShowPreview(true)
+        resolve(dataUrl) // Trả về dataUrl khi chứng chỉ đã được vẽ
+      }
+
+      image.onerror = (error) => {
+        console.error('Error loading certificate image:', error)
+        reject(error)
+      }
+    })
+  }
+
+  // Xử lý khi nhấn nút "Xem Trước"
+  const handlePreview = async () => {
+    await drawCertificate('DEMO-COURSECODE', true)
+  }
+
+  // Gửi yêu cầu đến backend để cấp chứng chỉ
+  const handleCertificateIssue = async () => {
+    if (!selectedUserId) {
+      alert('Vui lòng chọn người nhận')
+      return
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/issue', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          recipientName: name,
+          courseName: course,
+          issueDate: date
+        })
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        const { courseCode } = data
+
+        // Tạm lưu `courseCode` và vẽ chứng chỉ
+        setStoredCourseCode(courseCode)
+        const finalDataUrl = await drawCertificate(courseCode)
+
+        // Chờ cho đến khi certificateUrl được cập nhật
+        await finalizeCertificateIssue(courseCode, finalDataUrl)
+      } else {
+        alert(`Lỗi: ${data.message}`)
+      }
+    } catch (error) {
+      console.error('Lỗi khi tạo mã courseCode:', error)
+      alert('Đã có lỗi xảy ra khi tạo mã courseCode')
+    }
+  }
+
+  // Hàm để hoàn tất việc cấp chứng chỉ với `courseCode`
+  const finalizeCertificateIssue = async (courseCode, dataUrl) => {
+    if (!dataUrl) {
+      alert('Vui lòng tạo chứng chỉ trước')
+      return
+    }
+
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/finalize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          userId: selectedUserId,
+          recipientName: name,
+          courseName: course,
+          issueDate: date,
+          courseCode,
+          dataUrl // Chỉ gửi lên khi `certificateUrl` đã được cập nhật
+        })
+      })
+
+      const result = await response.json()
+      if (response.ok) {
+        alert('Chứng chỉ đã được cấp thành công!')
+      } else {
+        alert(`Lỗi: ${result.message}`)
+      }
+    } catch (error) {
+      console.error('Lỗi khi cấp chứng chỉ:', error)
+      alert('Đã có lỗi xảy ra khi cấp chứng chỉ')
     }
   }
 
   return (
     <div className="text-center">
-      <h2 className="text-2xl font-semibold mb-4">Cấp Chứng chỉ Mới</h2>
+      <h2 className="text-2xl font-semibold mb-4">Cấp Chứng Chỉ Mới</h2>
       <form className="space-y-4 max-w-lg mx-auto">
         <div>
           <label className="block text-sm font-semibold mb-1 text-left">
-            Tên Người Nhận
+            Người Nhận
           </label>
-          <input
-            type="text"
-            placeholder="Nhập tên người nhận"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
+          <select
+            value={selectedUserId}
+            onChange={(e) => setSelectedUserId(e.target.value)}
             className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-blue-500"
-          />
+          >
+            <option value="">Chọn người nhận</option>
+            {users.map((user) => (
+              <option key={user._id} value={user._id}>
+                {user.name} ({user.email})
+              </option>
+            ))}
+          </select>
         </div>
+
         <div>
           <label className="block text-sm font-semibold mb-1 text-left">
-            Tên Chứng chỉ
+            Tên Chứng Chỉ
           </label>
           <input
             type="text"
@@ -132,44 +269,37 @@ const NewCertificate = () => {
           />
         </div>
 
-        {/* Nút Xem Trước */}
         <button
           type="button"
-          onClick={drawCertificate}
+          onClick={handlePreview}
           className="w-full py-2 mt-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg"
         >
           Xem Trước
         </button>
 
-        {/* Nút Cấp Chứng Chỉ */}
         <button
           type="button"
+          onClick={handleCertificateIssue}
           className="w-full py-2 mt-4 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg"
         >
           Cấp Chứng Chỉ
         </button>
       </form>
 
-      {/* Hiển thị chứng chỉ đã vẽ với hiệu ứng cuộn mở/đóng */}
-      {certificateUrl && (
+      {tempCertificateUrl && (
         <div className="mt-8">
           <h3
             className="text-lg font-semibold mb-4 cursor-pointer px-4 py-2 bg-yellow-600 border-black rounded-lg inline-block text-white transition-transform transform hover:scale-105"
             onClick={() => setShowPreview(!showPreview)}
           >
-            Chứng Chỉ Xem Trước
+            Xem Trước
           </h3>
           {showPreview && (
-            <div
-              className={`transition-all duration-500 transform ${
-                showPreview
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 -translate-y-4'
-              }`}
-            >
+            <div className="flex justify-center transition-all duration-500 transform opacity-100 translate-y-0">
               <img
-                src={certificateUrl}
-                alt="Chứng chỉ xem trước"
+                width="800px"
+                src={tempCertificateUrl}
+                alt="Xem trước"
                 className="border rounded-lg shadow-lg max-w-full"
               />
             </div>
@@ -194,7 +324,7 @@ const IssuedCertificates = () => {
     elevation: 0,
     rowsPerPage: 5,
     rowsPerPageOptions: [5, 10],
-    tableBodyHeight: '500px',
+    tableBodyHeight: '300px',
     tableBodyMaxHeight: '800px'
   }
 

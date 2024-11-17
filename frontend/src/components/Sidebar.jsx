@@ -4,6 +4,7 @@ import { ChevronFirst, ChevronLast, MoreVertical } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
+import Avatar from 'react-avatar'
 
 const SidebarContext = createContext()
 
@@ -53,7 +54,13 @@ const Sidebar = ({ children }) => {
         </SidebarContext.Provider>
 
         <div className="border-t flex p-3">
-          <img src={logo} alt="" className="w-10 h-10 rounded-md" />
+          {/* <img src={logo} alt="" className="w-10 h-10 rounded-md" /> */}
+          <Avatar
+            name={user?.name}
+            size="40"
+            round={true}
+            color={Avatar.getRandomColor('sitebase')}
+          />
           <div
             className={`flex justify-between items-center overflow-hidden transition-all ${
               expanded ? 'w-52 ml-3' : 'w-0'

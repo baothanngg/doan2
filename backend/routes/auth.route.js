@@ -12,6 +12,8 @@ import {
   toggleUserLock
 } from '../controllers/auth.controller.js'
 import { verifyToken } from '../middleware/verifyToken.js'
+import { finalizeCertificateIssue, issueCertificate } from '../controllers/certificate.controller.js'
+import { getUsers } from '../controllers/user.controller.js'
 
 const router = express.Router()
 
@@ -34,5 +36,11 @@ router.post('/update-password', verifyToken, updatePassword)
 router.get('/users', getAllUsers)
 
 router.post('/toggle-lock/:userId', verifyToken, toggleUserLock)
+
+router.post('/issue', issueCertificate)
+
+router.post('/finalize', finalizeCertificateIssue)
+
+router.get('/users', getUsers)
 
 export default router
