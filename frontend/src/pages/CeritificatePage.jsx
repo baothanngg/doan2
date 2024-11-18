@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import MUIDataTable from 'mui-datatables'
 import QRCode from 'qrcode'
+import axios from 'axios'
 
 const CertificatePage = () => {
   const [activeTab, setActiveTab] = useState('new')
@@ -39,7 +40,7 @@ const CertificatePage = () => {
           }`}
           onClick={() => setActiveTab('issued')}
         >
-          Tổng Số Chứng chỉ Đã Cấp
+          Danh Sách Chứng chỉ
         </button>
       </div>
 
@@ -207,7 +208,7 @@ const NewCertificate = () => {
           courseName: course,
           issueDate: date,
           courseCode,
-          dataUrl // Chỉ gửi lên khi `certificateUrl` đã được cập nhật
+          dataUrl
         })
       })
 
@@ -311,11 +312,30 @@ const NewCertificate = () => {
 }
 
 const IssuedCertificates = () => {
+  const [data, setData] = useState([])
+
   const columns = [
     { name: 'id', label: 'ID' },
     { name: 'name', label: 'Tên Người Nhận' },
-    { name: 'certificate', label: 'Tên Chứng chỉ' },
-    { name: 'issuedDate', label: 'Ngày Cấp' }
+    { name: 'certificate', label: 'Tên Chứng Chỉ' },
+    { name: 'issuedDate', label: 'Ngày Cấp' },
+    {
+      name: '_id', // Sử dụng ID của chứng chỉ để ẩn IPFS CID
+      label: 'Xem Chứng Chỉ',
+      options: {
+        filter: false,
+        customBodyRender: (value) => (
+          <a
+            href={`http://localhost:5000/api/auth/view/${value}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 hover:underline"
+          >
+            Xem
+          </a>
+        )
+      }
+    }
   ]
 
   const options = {
@@ -328,28 +348,28 @@ const IssuedCertificates = () => {
     tableBodyMaxHeight: '800px'
   }
 
-  const data = [
-    {
-      id: '001',
-      name: 'Nguyen Van A',
-      certificate: 'Data Science',
-      issuedDate: '2023-01-15'
-    },
-    {
-      id: '002',
-      name: 'Tran Thi B',
-      certificate: 'Web Development',
-      issuedDate: '2023-05-10'
+  useEffect(() => {
+    const fetchCertificates = async () => {
+      try {
+        const response = await fetch(
+          'http://localhost:5000/api/auth//certificates'
+        )
+        const result = await response.json()
+        setData(result.data)
+      } catch (error) {
+        console.error('Lỗi khi tải danh sách chứng chỉ:', error)
+      }
     }
-  ]
+    fetchCertificates()
+  }, [])
 
   return (
     <div>
       <h2 className="text-2xl font-semibold mb-4 text-center">
-        Tổng Số Chứng chỉ Đã Cấp
+        Danh Sách Chứng Chỉ Đã Cấp
       </h2>
       <MUIDataTable
-        title={'Danh Sách Chứng Chỉ'}
+        title={'Danh Sách'}
         data={data}
         columns={columns}
         options={options}

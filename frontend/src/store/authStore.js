@@ -93,6 +93,7 @@ export const useAuthStore = create((set) => ({
       set({
         user: response.data.user,
         isAuthenticated: true,
+        token: localStorage.getItem('token'),
         isCheckingAuth: false
       })
     } catch (error) {
