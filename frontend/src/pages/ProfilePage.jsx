@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import toast from 'react-hot-toast'
 import Avatar from 'react-avatar'
+import { Pencil, Check } from 'lucide-react'
 
 const ProfilePage = () => {
   const { user, updatePassword } = useAuthStore()
@@ -10,6 +11,9 @@ const ProfilePage = () => {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [newName, setNewName] = useState(user?.name || '')
+  const [isEditing, setIsEditing] = useState(false)
+
+  const { updateName } = useAuthStore()
 
   const handlePasswordChange = async (e) => {
     e.preventDefault()
@@ -39,13 +43,19 @@ const ProfilePage = () => {
     }
   }
 
-  const handleNameChange = async (e) => {
-    e.preventDefault()
+  const handleNameChange = async () => {
+    if (!newName.trim()) {
+      toast.error('Tên không được để trống')
+      return
+    }
 
     try {
-      await updateName(newName)
+      await updateName(newName) // Gọi API cập nhật tên
       toast.success('Cập nhật họ tên thành công')
+      setIsEditing(false)
+      user.name = newName
     } catch (error) {
+      console.error('Lỗi khi cập nhật họ tên:', error)
       toast.error('Cập nhật họ tên thất bại')
     }
   }
@@ -84,7 +94,42 @@ const ProfilePage = () => {
 
         {/* Tên và email */}
         <div className="text-center mt-2">
-          <h2 className="font-semibold">{user?.name}</h2>
+          {/* Phần hiển thị/chỉnh sửa tên */}
+          <div className="flex items-center justify-center gap-2">
+            {isEditing ? (
+              <>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  className="border border-gray-300 rounded-lg px-2 py-1 focus:outline-none focus:border-blue-500"
+                />
+                <button
+                  onClick={handleNameChange}
+                  className="text-green-500 hover:text-green-700"
+                  aria-label="Save"
+                >
+                  <Check size={20} />
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="font-semibold">{user?.name}</h2>
+                <button
+                  onClick={() => {
+                    setIsEditing(true)
+                    setNewName(user?.name)
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                  aria-label="Edit"
+                >
+                  <Pencil size={20} />
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Email luôn hiển thị */}
           <p className="text-gray-500">{user?.email}</p>
         </div>
 
@@ -101,7 +146,7 @@ const ProfilePage = () => {
             <input
               type="text"
               className="w-full border border-gray-300 rounded-lg px-4 py-2 mt-1 focus:outline-none focus:border-blue-500"
-              defaultValue={user?.name}
+              value={isEditing ? newName : user?.name}
               disabled
             />
           </div>

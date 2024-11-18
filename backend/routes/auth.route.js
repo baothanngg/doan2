@@ -10,7 +10,8 @@ import {
   checkAuth,
   updatePassword,
   getAllUsers,
-  toggleUserLock
+  toggleUserLock,
+  updateName
 } from '../controllers/auth.controller.js'
 import { verifyToken } from '../middleware/verifyToken.js'
 import {
@@ -43,6 +44,8 @@ router.post('/forgot-password', forgotPassword)
 router.post('/reset-password/:token', resetPassword)
 
 router.post('/update-password', verifyToken, updatePassword)
+
+router.post('/update-name', verifyToken, updateName)
 
 router.get('/users', getAllUsers)
 

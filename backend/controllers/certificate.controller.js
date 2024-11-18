@@ -251,7 +251,7 @@ export const verifyCertificateByImage = async (req, res) => {
 
 export const getUserCertificates = async (req, res) => {
   try {
-    const userId = req.user._id // Lấy _id của người dùng từ token
+    const userId = req.userId
     const certificates = await Certificate.find({ userId }).select(
       '_id recipientName courseName issueDate ipfsCID'
     )
@@ -261,8 +261,8 @@ export const getUserCertificates = async (req, res) => {
       _id: cert._id,
       name: cert.recipientName,
       certificate: cert.courseName,
-      issuedDate: new Date(cert.issueDate).toLocaleDateString('vi-VN'), // Định dạng ngày
-      ipfsLink: `/api/auth/view/${cert._id}` // Sử dụng endpoint mới để chuyển hướng
+      issuedDate: new Date(cert.issueDate).toLocaleDateString('vi-VN'),
+      ipfsLink: `http://localhost:5000/api/auth/view/${cert._id}` 
     }))
 
     res.status(200).json({

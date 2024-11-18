@@ -9,6 +9,7 @@ import {
 } from '../mailtrap/emails.js'
 import crypto from 'crypto'
 import 'dotenv/config'
+import jwt from 'jsonwebtoken'
 
 export const signup = async (req, res) => {
   const { email, password, name } = req.body
@@ -123,6 +124,10 @@ export const login = async (req, res) => {
         .json({ success: false, message: 'Your account is locked' })
     }
 
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: '1d'
+    })
+
     generateTokenAndSetCookie(res, user._id)
 
     user.lastLogin = new Date()
@@ -135,7 +140,8 @@ export const login = async (req, res) => {
       user: {
         ...user._doc,
         password: undefined
-      }
+      },
+      token
     })
   } catch (error) {
     console.log('Login error:', error)
@@ -335,6 +341,33 @@ export const toggleUserLock = async (req, res) => {
     })
   } catch (error) {
     console.log('Toggle user lock error:', error)
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
+export const updateName = async (req, res) => {
+  const { newName } = req.body
+  const userId = req.userId
+
+  try {
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'User not found' })
+    }
+
+    user.name = newName
+    await user.save()
+
+    return res.status(200).json({
+      success: true,
+      message: 'Name updated successfully',
+      user: {
+        ...user._doc,
+        password: undefined
+      }
+    })
+  } catch (error) {
+    console.log('Update name error:', error)
     res.status(400).json({ success: false, message: error.message })
   }
 }
