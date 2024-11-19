@@ -18,6 +18,9 @@ contract CertificateStorage {
     // Mảng chứa tất cả các mã băm (certificateId)
     bytes32[] public certificateIds;
 
+    // Thêm mapping từ courseCode đến certificateId
+    mapping(string => bytes32) public certificateIdsByCourseCode;
+
     // Sự kiện khi chứng chỉ được thêm
     event CertificateAdded(
         bytes32 indexed certificateId,
@@ -56,8 +59,18 @@ contract CertificateStorage {
         // Thêm certificateId vào mảng certificateIds
         certificateIds.push(certificateId);
 
+         // Lưu certificateId theo courseCode
+        certificateIdsByCourseCode[courseCode] = certificateId;
+
         // Phát sự kiện chứng chỉ được thêm
         emit CertificateAdded(certificateId, recipientName, courseName, courseCode, issueDate, ipfsCID, msg.sender);
+    }
+
+    // Hàm để lấy ipfsCID dựa trên courseCode
+    function getIpfsCIDByCourseCode(string memory courseCode) public view returns (string memory) {
+        bytes32 certificateId = certificateIdsByCourseCode[courseCode];
+        require(certificates[certificateId].issuer != address(0), "Certificate does not exist");
+        return certificates[certificateId].ipfsCID;
     }
 
     // Hàm để xác thực chứng chỉ bằng cách nhập thông tin, sau đó lấy ra CID

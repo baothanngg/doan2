@@ -91,11 +91,11 @@ const NewCertificate = () => {
   }, [selectedUserId, users])
 
   // Hàm vẽ chứng chỉ
-  const drawCertificate = (courseCode, ipfsCID, isPreview = false) => {
+  const drawCertificate = (courseCode, isPreview = false) => {
     return new Promise((resolve, reject) => {
-      if (!courseCode || !ipfsCID) {
+      if (!courseCode) {
         console.error('Thiếu dữ liệu để vẽ chứng chỉ.')
-        reject(new Error('CourseCode hoặc ipfsCID bị thiếu'))
+        reject(new Error('CourseCode bị thiếu'))
         return
       }
 
@@ -124,7 +124,11 @@ const NewCertificate = () => {
         context.fillStyle = 'black'
         context?.fillText(courseCode, 1450, 95)
 
-        const qrData = `http://127.0.0.1:8080/ipfs/${ipfsCID}`
+        // **Tạo mã QR chứa URL với courseCode**
+        const qrData = `http://localhost:5000/api/auth/verify?courseCode=${encodeURIComponent(
+          courseCode
+        )}`
+
         const qrCanvas = document.createElement('canvas')
         await QRCode.toCanvas(qrCanvas, qrData, { width: 200 })
 
@@ -148,11 +152,6 @@ const NewCertificate = () => {
     })
   }
 
-  // Xử lý khi nhấn nút "Xem Trước"
-  const handlePreview = async () => {
-    await drawCertificate('DEMO-COURSECODE', 'DEMO-IPFSCID', true)
-  }
-
   // Gửi yêu cầu đến backend để cấp chứng chỉ
   const handleCertificateIssue = async () => {
     if (!selectedUserId) {
@@ -161,6 +160,7 @@ const NewCertificate = () => {
     }
 
     try {
+      // Gửi yêu cầu tạo chứng chỉ và nhận lại thông tin
       const response = await fetch('http://localhost:5000/api/auth/issue', {
         method: 'POST',
         headers: {
@@ -178,33 +178,18 @@ const NewCertificate = () => {
       if (response.ok) {
         const { courseCode } = data
 
-        // Tạo chứng chỉ tạm thời để lưu ảnh lên IPFS
-        const tempDataUrl = await drawCertificate(
-          courseCode,
-          'TEMP-IPFS-CID',
-          true
-        )
+        // Vẽ chứng chỉ với mã QR chứa URL với courseCode
+        const finalDataUrl = await drawCertificate(courseCode)
 
-        // Lưu ảnh tạm thời lên IPFS để lấy CID
-        const base64Data = tempDataUrl.replace(/^data:image\/\w+;base64,/, '')
+        // Chuyển đổi ảnh sang buffer và lưu lên IPFS
+        const base64Data = finalDataUrl.replace(/^data:image\/\w+;base64,/, '')
         const buffer = Buffer.from(base64Data, 'base64')
         const result = await ipfs.add(buffer)
         const ipfsCID = result.cid.toString()
 
-        console.log('Received courseCode:', courseCode)
-        console.log('Received ipfsCID:', ipfsCID)
+        console.log('CID từ IPFS:', ipfsCID)
 
-        // Kiểm tra ipfsCID
-        if (!ipfsCID) {
-          console.error('Backend trả về dữ liệu không hợp lệ.')
-          alert('Lỗi khi lấy dữ liệu từ backend.')
-          return
-        }
-
-        // Vẽ lại chứng chỉ với mã QR chứa link trực tiếp đến IPFS
-        const finalDataUrl = await drawCertificate(courseCode, ipfsCID)
-
-        // Gửi yêu cầu finalize đến backend
+        // Gửi finalize để lưu chứng chỉ thực
         const finalizeResponse = await fetch(
           'http://localhost:5000/api/auth/finalize',
           {
@@ -218,13 +203,15 @@ const NewCertificate = () => {
               courseName: course,
               issueDate: date,
               courseCode,
-              dataUrl: finalDataUrl
+              dataUrl: finalDataUrl,
+              ipfsCID
             })
           }
         )
 
         const finalizeData = await finalizeResponse.json()
         if (finalizeResponse.ok) {
+          setCertificateUrl(finalDataUrl)
           alert('Chứng chỉ đã được cấp thành công!')
         } else {
           alert(`Lỗi: ${finalizeData.message}`)
@@ -233,8 +220,19 @@ const NewCertificate = () => {
         alert(`Lỗi: ${data.message}`)
       }
     } catch (error) {
-      console.error('Lỗi khi tạo mã courseCode:', error)
-      alert('Đã có lỗi xảy ra khi tạo mã courseCode.')
+      console.error('Lỗi khi cấp chứng chỉ:', error)
+      alert('Đã có lỗi xảy ra khi cấp chứng chỉ.')
+    }
+  }
+
+  // Xử lý khi nhấn nút "Xem Trước"
+  const handlePreview = async () => {
+    try {
+      // Vẽ chứng chỉ xem trước với dữ liệu mẫu
+      await drawCertificate('DEMO-COURSECODE', true)
+    } catch (error) {
+      console.error('Lỗi khi xem trước chứng chỉ:', error)
+      alert('Không thể xem trước chứng chỉ.')
     }
   }
 

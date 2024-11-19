@@ -37,16 +37,17 @@ export const issueCertificate = async (req, res) => {
 }
 
 export const finalizeCertificateIssue = async (req, res) => {
-  const { userId, recipientName, courseName, issueDate, courseCode, dataUrl } =
-    req.body
+  const {
+    userId,
+    recipientName,
+    courseName,
+    issueDate,
+    courseCode,
+    dataUrl,
+    ipfsCID
+  } = req.body
 
   try {
-    // Tách phần Base64 từ dataUrl và lưu lên IPFS
-    const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, '')
-    const buffer = Buffer.from(base64Data, 'base64')
-    const result = await ipfs.add(buffer)
-    const ipfsCID = result.cid.toString()
-
     // Kết nối với smart contract
     const contract = await getContract()
     if (!contract) {
@@ -87,6 +88,36 @@ export const finalizeCertificateIssue = async (req, res) => {
     res
       .status(500)
       .json({ message: 'Lỗi khi cấp chứng chỉ', error: error.message })
+  }
+}
+
+export const verifyCertificate = async (req, res) => {
+  const { courseCode } = req.query
+
+  try {
+    if (!courseCode) {
+      throw new Error('CourseCode is required.')
+    }
+
+    // Kết nối với smart contract
+    const contract = await getContract()
+    if (!contract) {
+      throw new Error('Không thể kết nối với smart contract')
+    }
+
+    // Gọi hàm getIpfsCIDByCourseCode để lấy ipfsCID
+    const ipfsCID = await contract.getIpfsCIDByCourseCode(courseCode)
+
+    if (!ipfsCID || ipfsCID === '') {
+      throw new Error('Không tìm thấy chứng chỉ.')
+    }
+
+    // Chuyển hướng người dùng đến liên kết IPFS
+    const ipfsUrl = `http://127.0.0.1:8080/ipfs/${ipfsCID}`
+    res.redirect(ipfsUrl)
+  } catch (error) {
+    console.error('Lỗi khi xác thực chứng chỉ:', error)
+    res.status(500).send('Đã xảy ra lỗi khi xác thực chứng chỉ.')
   }
 }
 

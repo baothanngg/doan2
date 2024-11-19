@@ -106,6 +106,25 @@ const ABI = [
   {
     inputs: [
       {
+        internalType: 'string',
+        name: '',
+        type: 'string'
+      }
+    ],
+    name: 'certificateIdsByCourseCode',
+    outputs: [
+      {
+        internalType: 'bytes32',
+        name: '',
+        type: 'bytes32'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
         internalType: 'bytes32',
         name: '',
         type: 'bytes32'
@@ -155,6 +174,25 @@ const ABI = [
         internalType: 'bytes32[]',
         name: '',
         type: 'bytes32[]'
+      }
+    ],
+    stateMutability: 'view',
+    type: 'function'
+  },
+  {
+    inputs: [
+      {
+        internalType: 'string',
+        name: 'courseCode',
+        type: 'string'
+      }
+    ],
+    name: 'getIpfsCIDByCourseCode',
+    outputs: [
+      {
+        internalType: 'string',
+        name: '',
+        type: 'string'
       }
     ],
     stateMutability: 'view',
@@ -215,7 +253,7 @@ const ABI = [
   }
 ]
 
-const CONTRACT_ADDRESS = '0xaFeD0d1409188026f3748BfD816a649f53751dFC'
+const CONTRACT_ADDRESS = '0x66E6BC965C4424A7A18629D47AD453f6F8958665'
 const RPC_URL = process.env.RPC_URL
 const PRIVATE_KEY = process.env.PRIVATE_KEY
 

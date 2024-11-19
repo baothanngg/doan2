@@ -35,9 +35,12 @@ export const getNewCertificates = async (req, res) => {
     const oneDayAgo = new Date()
     oneDayAgo.setDate(oneDayAgo.getDate() - 1)
 
+    // Tìm chứng chỉ mới cấp trong 1 ngày qua, sắp xếp theo issueDate giảm dần
     const newCertificates = await Certificate.find({
       issueDate: { $gte: oneDayAgo }
-    }).select('_id recipientName courseName issueDate')
+    })
+      .sort({ issueDate: -1 }) // Sắp xếp giảm dần theo ngày cấp
+      .select('_id recipientName courseName issueDate')
 
     const formattedData = newCertificates.map((cert, index) => ({
       id: String(index + 1).padStart(1, '0'),

@@ -20,11 +20,15 @@ import {
   getUserCertificates,
   issueCertificate,
   redirectToIPFS,
+  verifyCertificate,
   verifyCertificateByImage,
   verifyCertificateByInfo
 } from '../controllers/certificate.controller.js'
 import { getUsers } from '../controllers/user.controller.js'
-import { getDashboardStats, getNewCertificates } from '../controllers/dashboard.controller.js'
+import {
+  getDashboardStats,
+  getNewCertificates
+} from '../controllers/dashboard.controller.js'
 
 const upload = multer({ storage: multer.memoryStorage() })
 
@@ -57,6 +61,8 @@ router.post('/issue', issueCertificate)
 router.post('/finalize', finalizeCertificateIssue)
 
 router.post('/verify-certificate', verifyCertificateByInfo)
+
+router.get('/verify', verifyCertificate)
 
 router.post('/verify-image', upload.single('image'), verifyCertificateByImage)
 
