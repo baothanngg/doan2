@@ -110,7 +110,6 @@ const UserPage = () => {
       options: {
         customBodyRender: (value, tableMeta) => {
           const userId = tableMeta.rowData[0] // Lấy ID từ cột đầu tiên
-          console.log(userId)
           return (
             <button
               onClick={() => handleToggleLock(userId)}

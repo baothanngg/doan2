@@ -208,8 +208,7 @@ export const verifyCertificateByImage = async (req, res) => {
   try {
     const { buffer } = req.file
 
-    // Lưu hình ảnh lên IPFS và lấy CID
-    const result = await ipfs.add(buffer)
+    const result = await ipfs.add(buffer, { onlyHash: true })
     const ipfsCID = result.cid.toString()
 
     // Kết nối với smart contract
@@ -262,7 +261,7 @@ export const getUserCertificates = async (req, res) => {
       name: cert.recipientName,
       certificate: cert.courseName,
       issuedDate: new Date(cert.issueDate).toLocaleDateString('vi-VN'),
-      ipfsLink: `http://localhost:5000/api/auth/view/${cert._id}` 
+      ipfsLink: `http://localhost:5000/api/auth/view/${cert._id}`
     }))
 
     res.status(200).json({

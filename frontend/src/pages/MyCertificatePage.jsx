@@ -84,12 +84,7 @@ const MyCertificatePage = () => {
 
       <div className="text-center">
         <h2 className="text-2xl font-semibold mb-4">Chứng Chỉ Của Tôi</h2>
-        <MUIDataTable
-          title={'Danh Sách Chứng Chỉ'}
-          data={certificates}
-          columns={columns}
-          options={options}
-        />
+        <MUIDataTable data={certificates} columns={columns} options={options} />
       </div>
     </div>
   )
