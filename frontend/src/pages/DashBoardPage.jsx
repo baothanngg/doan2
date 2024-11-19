@@ -138,9 +138,12 @@ const DashBoardPage = () => {
           >
             Thêm Chứng chỉ mới
           </Link>
-          <button className="bg-yellow-500 hover:bg-yellow-700 text-white font-semibold py-2 px-6 rounded">
-            Xuất Báo Cáo
-          </button>
+          <Link
+            to={'/verify-certificates'}
+            className="bg-yellow-500 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded"
+          >
+            Xác minh
+          </Link>
         </div>
       </section>
     </div>

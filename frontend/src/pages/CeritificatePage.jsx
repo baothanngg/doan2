@@ -134,7 +134,7 @@ const NewCertificate = () => {
           setCertificateUrl(dataUrl)
         }
         setShowPreview(true)
-        resolve(dataUrl) // Trả về dataUrl khi chứng chỉ đã được vẽ
+        resolve(dataUrl) 
       }
 
       image.onerror = (error) => {
