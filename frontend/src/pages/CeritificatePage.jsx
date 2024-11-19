@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom'
 import MUIDataTable from 'mui-datatables'
 import QRCode from 'qrcode'
 import axios from 'axios'
+import { create } from 'ipfs-http-client'
+import { Buffer } from 'buffer'
+
+const ipfs = create({ host: 'localhost', port: 5001, protocol: 'http' })
 
 const CertificatePage = () => {
   const [activeTab, setActiveTab] = useState('new')
@@ -87,11 +91,11 @@ const NewCertificate = () => {
   }, [selectedUserId, users])
 
   // Hàm vẽ chứng chỉ
-  const drawCertificate = (courseCode, isPreview = false) => {
+  const drawCertificate = (courseCode, ipfsCID, isPreview = false) => {
     return new Promise((resolve, reject) => {
-      if (!courseCode) {
-        console.error('CourseCode chưa được cung cấp cho việc vẽ chứng chỉ.')
-        reject(new Error('CourseCode missing'))
+      if (!courseCode || !ipfsCID) {
+        console.error('Thiếu dữ liệu để vẽ chứng chỉ.')
+        reject(new Error('CourseCode hoặc ipfsCID bị thiếu'))
         return
       }
 
@@ -120,7 +124,7 @@ const NewCertificate = () => {
         context.fillStyle = 'black'
         context?.fillText(courseCode, 1450, 95)
 
-        const qrData = `${name} - ${course} - ${date} - ${courseCode}`
+        const qrData = `http://127.0.0.1:8080/ipfs/${ipfsCID}`
         const qrCanvas = document.createElement('canvas')
         await QRCode.toCanvas(qrCanvas, qrData, { width: 200 })
 
@@ -134,7 +138,7 @@ const NewCertificate = () => {
           setCertificateUrl(dataUrl)
         }
         setShowPreview(true)
-        resolve(dataUrl) 
+        resolve(dataUrl) // Trả về dataUrl khi chứng chỉ đã được vẽ
       }
 
       image.onerror = (error) => {
@@ -146,7 +150,7 @@ const NewCertificate = () => {
 
   // Xử lý khi nhấn nút "Xem Trước"
   const handlePreview = async () => {
-    await drawCertificate('DEMO-COURSECODE', true)
+    await drawCertificate('DEMO-COURSECODE', 'DEMO-IPFSCID', true)
   }
 
   // Gửi yêu cầu đến backend để cấp chứng chỉ
@@ -174,23 +178,68 @@ const NewCertificate = () => {
       if (response.ok) {
         const { courseCode } = data
 
-        // Tạm lưu `courseCode` và vẽ chứng chỉ
-        setStoredCourseCode(courseCode)
-        const finalDataUrl = await drawCertificate(courseCode)
+        // Tạo chứng chỉ tạm thời để lưu ảnh lên IPFS
+        const tempDataUrl = await drawCertificate(
+          courseCode,
+          'TEMP-IPFS-CID',
+          true
+        )
 
-        // Chờ cho đến khi certificateUrl được cập nhật
-        await finalizeCertificateIssue(courseCode, finalDataUrl)
+        // Lưu ảnh tạm thời lên IPFS để lấy CID
+        const base64Data = tempDataUrl.replace(/^data:image\/\w+;base64,/, '')
+        const buffer = Buffer.from(base64Data, 'base64')
+        const result = await ipfs.add(buffer)
+        const ipfsCID = result.cid.toString()
+
+        console.log('Received courseCode:', courseCode)
+        console.log('Received ipfsCID:', ipfsCID)
+
+        // Kiểm tra ipfsCID
+        if (!ipfsCID) {
+          console.error('Backend trả về dữ liệu không hợp lệ.')
+          alert('Lỗi khi lấy dữ liệu từ backend.')
+          return
+        }
+
+        // Vẽ lại chứng chỉ với mã QR chứa link trực tiếp đến IPFS
+        const finalDataUrl = await drawCertificate(courseCode, ipfsCID)
+
+        // Gửi yêu cầu finalize đến backend
+        const finalizeResponse = await fetch(
+          'http://localhost:5000/api/auth/finalize',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              userId: selectedUserId,
+              recipientName: name,
+              courseName: course,
+              issueDate: date,
+              courseCode,
+              dataUrl: finalDataUrl
+            })
+          }
+        )
+
+        const finalizeData = await finalizeResponse.json()
+        if (finalizeResponse.ok) {
+          alert('Chứng chỉ đã được cấp thành công!')
+        } else {
+          alert(`Lỗi: ${finalizeData.message}`)
+        }
       } else {
         alert(`Lỗi: ${data.message}`)
       }
     } catch (error) {
       console.error('Lỗi khi tạo mã courseCode:', error)
-      alert('Đã có lỗi xảy ra khi tạo mã courseCode')
+      alert('Đã có lỗi xảy ra khi tạo mã courseCode.')
     }
   }
 
   // Hàm để hoàn tất việc cấp chứng chỉ với `courseCode`
-  const finalizeCertificateIssue = async (courseCode, dataUrl) => {
+  const finalizeCertificateIssue = async (courseCode, ipfsCID, dataUrl) => {
     if (!dataUrl) {
       alert('Vui lòng tạo chứng chỉ trước')
       return
@@ -208,6 +257,7 @@ const NewCertificate = () => {
           courseName: course,
           issueDate: date,
           courseCode,
+          ipfsCID,
           dataUrl
         })
       })

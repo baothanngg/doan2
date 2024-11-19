@@ -1,0 +1,3 @@
+export EDITOR=notepad
+ipfs config edit
+ "Access-Control-Allow-Headers": ["Authorization", "Content-Type"]

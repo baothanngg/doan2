@@ -79,7 +79,8 @@ export const finalizeCertificateIssue = async (req, res) => {
 
     res.status(201).json({
       message: 'Chứng chỉ đã được cấp thành công',
-      certificate
+      certificate,
+      ipfsCID // Trả về CID để frontend sử dụng
     })
   } catch (error) {
     console.error('Lỗi khi cấp chứng chỉ:', error)
@@ -217,7 +218,6 @@ export const verifyCertificateByImage = async (req, res) => {
       throw new Error('Không thể kết nối với smart contract')
     }
 
-    // Gọi hàm verifyCertificateByCID trên smart contract
     const isValid = await contract.verifyCertificateByCID(ipfsCID)
 
     if (isValid) {
