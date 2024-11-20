@@ -9,11 +9,16 @@ export const getDashboardStats = async (req, res) => {
     // Tổng số tài khoản đang có
     const totalUsers = await User.countDocuments()
 
-    // Chứng chỉ mới cấp trong vòng 1 ngày
-    const oneDayAgo = new Date()
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1)
+    // Lấy thời gian đầu và cuối của ngày hôm nay
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0) // Đặt giờ thành 00:00:00
+
+    const endOfToday = new Date()
+    endOfToday.setHours(23, 59, 59, 999) // Đặt giờ thành 23:59:59
+
+    // Chứng chỉ được cấp trong ngày hôm nay
     const newCertificates = await Certificate.countDocuments({
-      issueDate: { $gte: oneDayAgo }
+      createdAt: { $gte: startOfToday, $lte: endOfToday } // Lọc theo createdAt trong ngày hôm nay
     })
 
     res.status(200).json({
@@ -32,27 +37,32 @@ export const getDashboardStats = async (req, res) => {
 
 export const getNewCertificates = async (req, res) => {
   try {
-    const oneDayAgo = new Date()
-    oneDayAgo.setDate(oneDayAgo.getDate() - 1)
+    // Lấy thời gian đầu và cuối của ngày hôm nay
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0) // Đặt giờ thành 00:00:00
 
-    // Tìm chứng chỉ mới cấp trong 1 ngày qua, sắp xếp theo issueDate giảm dần
+    const endOfToday = new Date()
+    endOfToday.setHours(23, 59, 59, 999) // Đặt giờ thành 23:59:59
+
+    // Tìm chứng chỉ được tạo trong ngày hôm nay, sắp xếp theo createdAt giảm dần
     const newCertificates = await Certificate.find({
-      issueDate: { $gte: oneDayAgo }
+      createdAt: { $gte: startOfToday, $lte: endOfToday } // Lọc theo createdAt trong ngày hôm nay
     })
-      .sort({ issueDate: -1 }) // Sắp xếp giảm dần theo ngày cấp
-      .select('_id recipientName courseName issueDate')
+      .sort({ createdAt: -1 }) // Sắp xếp giảm dần theo createdAt
+      .select('_id recipientName courseName issueDate') // Chỉ chọn các trường cần thiết
 
+    // Định dạng dữ liệu
     const formattedData = newCertificates.map((cert, index) => ({
-      id: String(index + 1).padStart(1, '0'),
+      id: String(index + 1).padStart(1, '0'), // Đánh số thứ tự
       _id: cert._id,
       recipientName: cert.recipientName,
       courseName: cert.courseName,
-      issueDate: new Date(cert.issueDate).toLocaleDateString('vi-VN'),
-      viewLink: `http://localhost:5000/api/auth/view/${cert._id}`
+      issueDate: new Date(cert.issueDate).toLocaleDateString('vi-VN'), // Định dạng issueDate
+      viewLink: `http://localhost:5000/api/auth/view/${cert._id}` // Đường dẫn xem chứng chỉ
     }))
 
     res.status(200).json({
-      message: 'Danh sách chứng chỉ mới cấp trong ngày',
+      message: 'Danh sách chứng chỉ mới cấp trong ngày hôm nay',
       data: formattedData
     })
   } catch (error) {

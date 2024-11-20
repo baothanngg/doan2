@@ -46,6 +46,7 @@ const DashBoardPage = () => {
           }
         )
         const result = await response.json()
+        console.log(result)
         if (response.ok) {
           setNewCertificates(result.data)
         } else {

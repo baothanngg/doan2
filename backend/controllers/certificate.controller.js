@@ -6,7 +6,7 @@ import { create } from 'ipfs-http-client'
 import { getNextSequence } from '../utils/getNextSequence.js'
 
 // Kết nối với IPFS
-const ipfs = create({ host: 'localhost', port: 5001, protocol: 'http' })
+const ipfs = create({ host: '127.0.0.1', port: 5001, protocol: 'http' })
 
 // Cấu hình multer để xử lý file upload
 const upload = multer({ storage: multer.memoryStorage() })
@@ -65,6 +65,14 @@ export const finalizeCertificateIssue = async (req, res) => {
       ipfsCID
     )
     console.log('Transaction hash:', tx.hash)
+
+    const fileBuffer = Buffer.from(dataUrl.split(',')[1], 'base64')
+    const { cid } = await ipfs.add(
+      { path: courseCode, content: fileBuffer },
+      { pin: true }
+    )
+    // Thêm CID vào MFS (Mutable File System) để xuất hiện trong WebUI
+    await ipfs.files.cp(`/ipfs/${cid.toString()}`, `/${courseCode}`)
 
     // Lưu chứng chỉ vào MongoDB
     const certificate = new Certificate({
