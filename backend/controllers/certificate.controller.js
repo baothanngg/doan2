@@ -4,6 +4,8 @@ import { User } from '../models/user.model.js'
 import { getContract } from '../utils/contract.js'
 import { create } from 'ipfs-http-client'
 import { getNextSequence } from '../utils/getNextSequence.js'
+import { ethers } from 'ethers'
+import 'dotenv/config'
 
 // Kết nối với IPFS
 const ipfs = create({ host: '127.0.0.1', port: 5001, protocol: 'http' })
@@ -56,6 +58,13 @@ export const finalizeCertificateIssue = async (req, res) => {
 
     const issueDateTimestamp = Math.floor(new Date(issueDate).getTime() / 1000)
 
+    // Tạo certificateId bằng cách sử dụng keccak256
+    const data = ethers.AbiCoder.defaultAbiCoder().encode(
+      ['string', 'string', 'string', 'uint256'],
+      [recipientName, courseName, courseCode, issueDateTimestamp]
+    )
+    const certificateId = ethers.keccak256(data)
+
     // Gọi addCertificate và lấy transaction hash
     const tx = await contract.addCertificate(
       recipientName,
@@ -66,11 +75,13 @@ export const finalizeCertificateIssue = async (req, res) => {
     )
     console.log('Transaction hash:', tx.hash)
 
+    // Lưu file chứng chỉ vào IPFS
     const fileBuffer = Buffer.from(dataUrl.split(',')[1], 'base64')
     const { cid } = await ipfs.add(
       { path: courseCode, content: fileBuffer },
       { pin: true }
     )
+
     // Thêm CID vào MFS (Mutable File System) để xuất hiện trong WebUI
     await ipfs.files.cp(`/ipfs/${cid.toString()}`, `/${courseCode}`)
 
@@ -81,7 +92,7 @@ export const finalizeCertificateIssue = async (req, res) => {
       courseName,
       courseCode,
       issueDate,
-      ipfsCID,
+      ipfsCID: cid.toString(),
       blockchainTxHash: tx.hash // Lưu transaction hash vào MongoDB
     })
     await certificate.save()
@@ -89,7 +100,7 @@ export const finalizeCertificateIssue = async (req, res) => {
     res.status(201).json({
       message: 'Chứng chỉ đã được cấp thành công',
       certificate,
-      ipfsCID // Trả về CID để frontend sử dụng
+      ipfsCID: cid.toString() // Trả về CID để frontend sử dụng
     })
   } catch (error) {
     console.error('Lỗi khi cấp chứng chỉ:', error)
@@ -132,7 +143,7 @@ export const verifyCertificate = async (req, res) => {
 export const getIssuedCertificates = async (req, res) => {
   try {
     const certificates = await Certificate.find({}).select(
-      '_id recipientName courseName issueDate'
+      '_id recipientName courseName issueDate blockchainTxHash'
     )
 
     const formattedData = certificates.map((cert, index) => ({
@@ -140,7 +151,8 @@ export const getIssuedCertificates = async (req, res) => {
       _id: cert._id, // Sử dụng ID thay vì CID
       name: cert.recipientName,
       certificate: cert.courseName,
-      issuedDate: new Date(cert.issueDate).toLocaleDateString('vi-VN') // Định dạng ngày
+      issuedDate: new Date(cert.issueDate).toLocaleDateString('vi-VN'), // Định dạng ngày,
+      blockchainTxHash: cert.blockchainTxHash
     }))
 
     res.status(200).json({
@@ -311,6 +323,114 @@ export const getUserCertificates = async (req, res) => {
     console.error('Lỗi khi lấy danh sách chứng chỉ:', error)
     res.status(500).json({
       message: 'Lỗi khi lấy danh sách chứng chỉ',
+      error: error.message
+    })
+  }
+}
+
+export const getCertificateByTxHash = async (req, res) => {
+  const { blockchainTxHash } = req.params
+  const RPC_URL = process.env.RPC_URL
+
+  try {
+    const provider = new ethers.JsonRpcProvider(RPC_URL)
+    const tx = await provider.getTransaction(blockchainTxHash)
+
+    if (!tx) {
+      return res.status(404).json({ message: 'Transaction not found' })
+    }
+
+    // Lấy transaction receipt
+    const receipt = await provider.getTransactionReceipt(blockchainTxHash)
+    if (!receipt || !receipt.logs) {
+      return res
+        .status(404)
+        .json({ message: 'Transaction receipt not found or has no logs' })
+    }
+
+    // Kết nối tới smart contract
+    const contract = await getContract()
+
+    // Tìm log của sự kiện CertificateAdded
+    const eventTopic = ethers.keccak256(
+      ethers.toUtf8Bytes(
+        'CertificateAdded(bytes32,string,string,string,uint256,string,address)'
+      )
+    )
+
+    const log = receipt.logs.find((log) => log.topics[0] === eventTopic)
+
+    if (!log) {
+      return res
+        .status(404)
+        .json({ message: 'Certificate not found in transaction logs' })
+    }
+
+    // Phân tích log
+    let parsedLog
+    try {
+      parsedLog = contract.interface.parseLog(log)
+    } catch (err) {
+      console.error('Error parsing log:', err)
+      return res
+        .status(500)
+        .json({ message: 'Error parsing log', error: err.message })
+    }
+
+    // Kiểm tra và xử lý issueDate
+    let issueDate
+    if (typeof parsedLog.args.issueDate === 'bigint') {
+      issueDate = new Date(
+        Number(parsedLog.args.issueDate) * 1000
+      ).toISOString()
+    } else if (parsedLog.args.issueDate._isBigNumber) {
+      issueDate = new Date(
+        parsedLog.args.issueDate.toNumber() * 1000
+      ).toISOString()
+    } else if (typeof parsedLog.args.issueDate === 'string') {
+      issueDate = new Date(
+        parseInt(parsedLog.args.issueDate, 10) * 1000
+      ).toISOString()
+    } else if (typeof parsedLog.args.issueDate === 'number') {
+      issueDate = new Date(parsedLog.args.issueDate * 1000).toISOString()
+    } else {
+      throw new Error('Unsupported issueDate format')
+    }
+
+    // Tính phí giao dịch
+    const gasUsed = receipt.gasUsed.toBigInt
+      ? receipt.gasUsed.toBigInt()
+      : BigInt(receipt.gasUsed.toString()) // Chuyển gasUsed thành BigInt
+    const gasPrice = tx.gasPrice.toBigInt
+      ? tx.gasPrice.toBigInt()
+      : BigInt(tx.gasPrice.toString()) // Chuyển gasPrice thành BigInt
+    const transactionFee = (gasUsed * gasPrice).toString() // Tính phí giao dịch
+    const transactionFeeInEther = ethers.formatEther(transactionFee) // Chuyển sang Ether
+
+    // Tạo đối tượng chứng chỉ
+    const certificate = {
+      recipientName: parsedLog.args.recipientName,
+      courseName: parsedLog.args.courseName,
+      courseCode: parsedLog.args.courseCode,
+      issueDate, // Sử dụng issueDate đã xử lý
+      ipfsCID: parsedLog.args.ipfsCID,
+      issuer: parsedLog.args.issuer,
+      certificateId: parsedLog.args.certificateId,
+      gasUsed: receipt.gasUsed.toString(),
+      gasPrice: tx.gasPrice.toString(),
+      transactionFee, // Phí giao dịch tính bằng Wei
+      transactionFeeInEther, // Phí giao dịch tính bằng Ether
+      from: tx.from,
+      to: tx.to,
+      blockNumber: tx.blockNumber,
+      transactionHash: tx.hash
+    }
+
+    res.status(200).json(certificate)
+  } catch (error) {
+    console.error('Error fetching certificate by transaction hash:', error)
+    res.status(500).json({
+      message: 'Error fetching certificate by transaction hash',
       error: error.message
     })
   }

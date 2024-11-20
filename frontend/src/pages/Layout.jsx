@@ -9,7 +9,8 @@ import {
   UserRoundPen,
   Award,
   ShieldCheck,
-  FileBadge2
+  FileBadge2,
+  FileUser
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 const Layout = ({ children }) => {
@@ -44,6 +45,12 @@ const Layout = ({ children }) => {
               icon={<UserCircle size={20} />}
               text="Người dùng"
               active={location.pathname === '/users'}
+            />
+            <SidebarItem
+              to={'/information'}
+              icon={<FileUser size={20} />}
+              text="Thông tin"
+              active={location.pathname === '/information'}
             />
             <hr className="my-3" />
             <SidebarItem

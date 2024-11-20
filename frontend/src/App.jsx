@@ -17,6 +17,7 @@ import ProfilePage from './pages/ProfilePage'
 import CeritificatePage from './pages/CeritificatePage'
 import VerifyPage from './pages/VerifyPage'
 import MyCertificatePage from './pages/MyCertificatePage'
+import InformationPage from './pages/InformationPage'
 
 // Chuyen huong nguoi dung
 const Redicrect = ({ children }) => {
@@ -144,6 +145,19 @@ function App() {
               <div className="absolute inset-0 bg-white z-10">
                 <Layout>
                   <CeritificatePage />
+                </Layout>
+              </div>
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/information"
+          element={
+            <AdminRoute>
+              <div className="absolute inset-0 bg-white z-10">
+                <Layout>
+                  <InformationPage />
                 </Layout>
               </div>
             </AdminRoute>

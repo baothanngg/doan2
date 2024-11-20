@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import MUIDataTable from 'mui-datatables'
 import QRCode from 'qrcode'
 import axios from 'axios'
@@ -361,6 +361,7 @@ const NewCertificate = () => {
 
 const IssuedCertificates = () => {
   const [data, setData] = useState([])
+  const navigate = useNavigate()
 
   const columns = [
     { name: 'id', label: 'ID' },
@@ -368,7 +369,7 @@ const IssuedCertificates = () => {
     { name: 'certificate', label: 'Tên Chứng Chỉ' },
     { name: 'issuedDate', label: 'Ngày Cấp' },
     {
-      name: '_id', // Sử dụng ID của chứng chỉ để ẩn IPFS CID
+      name: '_id',
       label: 'Xem Chứng Chỉ',
       options: {
         filter: false,
@@ -381,6 +382,21 @@ const IssuedCertificates = () => {
           >
             Xem
           </a>
+        )
+      }
+    },
+    {
+      name: 'blockchainTxHash', 
+      label: 'Chi Tiết',
+      options: {
+        filter: false,
+        customBodyRender: (value) => (
+          <button
+            onClick={() => navigate(`/information?txHash=${value}`)}
+            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+          >
+            Chi Tiết
+          </button>
         )
       }
     }
@@ -400,7 +416,7 @@ const IssuedCertificates = () => {
     const fetchCertificates = async () => {
       try {
         const response = await fetch(
-          'http://localhost:5000/api/auth//certificates'
+          'http://localhost:5000/api/auth/certificates'
         )
         const result = await response.json()
         setData(result.data)

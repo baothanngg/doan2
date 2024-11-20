@@ -84,6 +84,21 @@ const DashBoardPage = () => {
           </a>
         )
       }
+    },
+    {
+      name: 'blockchainTxHash',
+      label: 'Chi Tiết',
+      options: {
+        filter: false,
+        customBodyRender: (value) => (
+          <a
+            href={`/information?txHash=${value}`}
+            className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+          >
+            Chi Tiết
+          </a>
+        )
+      }
     }
   ]
 

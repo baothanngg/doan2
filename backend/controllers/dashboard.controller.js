@@ -49,7 +49,7 @@ export const getNewCertificates = async (req, res) => {
       createdAt: { $gte: startOfToday, $lte: endOfToday } // Lọc theo createdAt trong ngày hôm nay
     })
       .sort({ createdAt: -1 }) // Sắp xếp giảm dần theo createdAt
-      .select('_id recipientName courseName issueDate') // Chỉ chọn các trường cần thiết
+      .select('_id recipientName courseName issueDate blockchainTxHash') // Chỉ chọn các trường cần thiết
 
     // Định dạng dữ liệu
     const formattedData = newCertificates.map((cert, index) => ({
@@ -58,7 +58,8 @@ export const getNewCertificates = async (req, res) => {
       recipientName: cert.recipientName,
       courseName: cert.courseName,
       issueDate: new Date(cert.issueDate).toLocaleDateString('vi-VN'), // Định dạng issueDate
-      viewLink: `http://localhost:5000/api/auth/view/${cert._id}` // Đường dẫn xem chứng chỉ
+      viewLink: `http://localhost:5000/api/auth/view/${cert._id}`,
+      blockchainTxHash: cert.blockchainTxHash
     }))
 
     res.status(200).json({

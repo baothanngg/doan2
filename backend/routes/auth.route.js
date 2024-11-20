@@ -16,6 +16,7 @@ import {
 import { verifyToken } from '../middleware/verifyToken.js'
 import {
   finalizeCertificateIssue,
+  getCertificateByTxHash,
   getIssuedCertificates,
   getUserCertificates,
   issueCertificate,
@@ -77,5 +78,7 @@ router.get('/user-certificates', verifyToken, getUserCertificates)
 router.get('/stats', verifyToken, getDashboardStats)
 
 router.get('/new-certificates', verifyToken, getNewCertificates)
+
+router.get('/certificate/:blockchainTxHash', getCertificateByTxHash)
 
 export default router

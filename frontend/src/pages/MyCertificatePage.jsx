@@ -35,16 +35,66 @@ const MyCertificatePage = () => {
     fetchCertificates()
   }, [token])
 
+  const handleDownload = async (ipfsLink, nameCert) => {
+    try {
+      const response = await fetch(ipfsLink)
+      if (!response.ok) {
+        throw new Error('Lỗi khi tải file từ IPFS')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+
+      // Tạo link tải xuống
+      const a = document.createElement('a')
+      a.href = url
+      a.download = nameCert // Sử dụng courseCode làm tên file
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+
+      // Giải phóng URL blob
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Lỗi khi tải file:', error)
+    }
+  }
+
   const columns = [
-    { name: 'id', label: 'ID' },
-    { name: 'name', label: 'Tên Người Nhận' },
-    { name: 'certificate', label: 'Tên Chứng Chỉ' },
-    { name: 'issuedDate', label: 'Ngày Cấp' },
+    {
+      name: 'id',
+      label: 'ID',
+      options: {
+        setCellProps: () => ({ style: { textAlign: 'center' } })
+      }
+    },
+    {
+      name: 'name',
+      label: 'Tên Người Nhận',
+      options: {
+        setCellProps: () => ({ style: { textAlign: 'center' } })
+      }
+    },
+    {
+      name: 'certificate',
+      label: 'Tên Chứng Chỉ',
+      options: {
+        setCellProps: () => ({ style: { textAlign: 'center' } })
+      }
+    },
+    {
+      name: 'issuedDate',
+      label: 'Ngày Cấp',
+      options: {
+        setCellProps: () => ({ style: { textAlign: 'center' } })
+      }
+    },
     {
       name: 'ipfsLink',
       label: 'Xem Chứng Chỉ',
       options: {
         filter: false,
+        setCellProps: () => ({ style: { textAlign: 'center' } }),
         customBodyRender: (value) => (
           <a
             href={value}
@@ -55,6 +105,26 @@ const MyCertificatePage = () => {
             Xem
           </a>
         )
+      }
+    },
+    {
+      name: 'download',
+      label: 'Tải Về',
+      options: {
+        filter: false,
+        setCellProps: () => ({ style: { textAlign: 'center' } }),
+        customBodyRender: (value, tableMeta) => {
+          const ipfsLink = tableMeta.rowData[4]
+          const nameCert = tableMeta.rowData[2]
+          return (
+            <button
+              onClick={() => handleDownload(ipfsLink, nameCert)}
+              className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+            >
+              Tải Về
+            </button>
+          )
+        }
       }
     }
   ]
