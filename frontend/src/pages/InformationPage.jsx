@@ -62,7 +62,7 @@ const InformationPage = () => {
 
   return (
     <div className="flex flex-col h-fit p-8">
-      <h1 className="text-2xl font-bold mb-4">Quản lý người dùng</h1>
+      <h1 className="text-2xl font-bold mb-4">Thông tin chi ti</h1>
       <nav className="mb-4 text-sm text-gray-500">
         <Link to="/" className="hover:underline">
           Tổng quan

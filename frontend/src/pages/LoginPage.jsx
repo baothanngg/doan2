@@ -1,18 +1,34 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Loader } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Input from '../components/Input'
 import { useAuthStore } from '../store/authStore'
+import toast from 'react-hot-toast'
 
 const LoginPage = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const { login, isLoading, error } = useAuthStore()
+  const navigate = useNavigate()
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    await login(email, password)
+
+    try {
+      const response = await login(email, password)
+
+      if (response.requiresTwoFactor) {
+        navigate('/2fa', {
+          state: { userId: response.user._id, email, password }
+        })
+      } else if (response.success) {
+        navigate('/')
+      }
+    } catch (err) {
+      console.error('Lỗi đăng nhập:', err)
+      toast.error(err.message || 'Login failed')
+    }
   }
 
   return (
@@ -45,7 +61,7 @@ const LoginPage = () => {
           />
           <div className="flex items-center mb-6">
             <Link
-              to={"/forgot-password"}
+              to={'/forgot-password'}
               className="text-sm text-green-400 hover:underline"
             >
               Forgot Password?

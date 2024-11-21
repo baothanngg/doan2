@@ -11,7 +11,11 @@ import {
   updatePassword,
   getAllUsers,
   toggleUserLock,
-  updateName
+  updateName,
+  generate2FA,
+  toggle2FA,
+  get2FAStatus,
+  verifyTwoFactor
 } from '../controllers/auth.controller.js'
 import { verifyToken } from '../middleware/verifyToken.js'
 import {
@@ -63,9 +67,17 @@ router.post('/finalize', finalizeCertificateIssue)
 
 router.post('/verify-certificate', verifyCertificateByInfo)
 
-router.get('/verify', verifyCertificate)
+router.post('/generate-2fa', generate2FA)
+
+router.post('/toggle-2fa', toggle2FA)
 
 router.post('/verify-image', upload.single('image'), verifyCertificateByImage)
+
+router.post('/verify-2fa', verifyTwoFactor)
+
+router.get('/verify', verifyCertificate)
+
+router.get('/2fa-status', verifyToken, get2FAStatus)
 
 router.get('/certificates', getIssuedCertificates)
 

@@ -59,7 +59,12 @@ const Layout = ({ children }) => {
               to={'/profile'}
               active={location.pathname === '/profile'}
             />
-            <SidebarItem icon={<Settings size={20} />} text="Cài đặt" />
+            <SidebarItem
+              icon={<Settings size={20} />}
+              text="Cài đặt"
+              to={'/setting'}
+              active={location.pathname === '/setting'}
+            />
           </>
         ) : (
           <>
@@ -81,7 +86,12 @@ const Layout = ({ children }) => {
               to={'/profile'}
               active={location.pathname === '/profile'}
             />
-            <SidebarItem icon={<Settings size={20} />} text="Cài đặt" />
+            <SidebarItem
+              icon={<Settings size={20} />}
+              text="Cài đặt"
+              to={'/setting'}
+              active={location.pathname === '/setting'}
+            />
           </>
         )}
       </Sidebar>

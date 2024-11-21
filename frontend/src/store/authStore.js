@@ -52,6 +52,12 @@ export const useAuthStore = create((set) => ({
 
     try {
       const response = await axios.post(`${API_URL}/login`, { email, password })
+
+      if (response.data.requiresTwoFactor) {
+        // Nếu yêu cầu 2FA, trả về trạng thái để frontend xử lý
+        return { requiresTwoFactor: true, user: response.data.user }
+      }
+
       const token = response.data.token
 
       if (!token) {
@@ -68,6 +74,7 @@ export const useAuthStore = create((set) => ({
         token,
         error: null
       })
+      return { success: true }
     } catch (error) {
       set({
         error: error.response?.data?.message || 'Error logging in',
@@ -89,6 +96,9 @@ export const useAuthStore = create((set) => ({
           }
         }
       )
+
+      localStorage.removeItem('token')
+      axios.defaults.headers.common['Authorization'] = ''
       set({ user: null, isAuthenticated: false, isLoading: false })
     } catch (error) {
       set({ error: 'Error logging out', isLoading: false })
@@ -114,6 +124,8 @@ export const useAuthStore = create((set) => ({
         isCheckingAuth: false
       })
     } catch (error) {
+      localStorage.removeItem('token')
+      axios.defaults.headers.common['Authorization'] = ''
       set({ error: null, isCheckingAuth: false, isAuthenticated: false })
     }
   },

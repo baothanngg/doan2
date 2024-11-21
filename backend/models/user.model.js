@@ -40,7 +40,12 @@ const userSchema = new mongoose.Schema(
     resetPasswordToken: String,
     resetPasswordExpiresAt: Date,
     verificationToken: String,
-    verificationTokenExpiresAt: Date
+    verificationTokenExpiresAt: Date,
+    twoFactorSecret: String,
+    is2FAEnabled: {
+      type: Boolean,
+      default: false
+    }
   },
   { timestamps: true }
 )

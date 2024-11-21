@@ -18,6 +18,8 @@ import CeritificatePage from './pages/CeritificatePage'
 import VerifyPage from './pages/VerifyPage'
 import MyCertificatePage from './pages/MyCertificatePage'
 import InformationPage from './pages/InformationPage'
+import SettingPage from './pages/SettingPage'
+import TwoFactorPage from './pages/TwoFactorPage'
 
 // Chuyen huong nguoi dung
 const Redicrect = ({ children }) => {
@@ -198,6 +200,20 @@ function App() {
             </Redicrect>
           }
         />
+
+        <Route
+          path="/setting"
+          element={
+            <ProtectRoute>
+              <div className="absolute inset-0 bg-white z-10">
+                <Layout>
+                  <SettingPage />
+                </Layout>
+              </div>
+            </ProtectRoute>
+          }
+        />
+
         <Route
           path="/login"
           element={
@@ -206,6 +222,16 @@ function App() {
             </Redicrect>
           }
         />
+
+        <Route
+          path="/2fa"
+          element={
+            <Redicrect>
+              <TwoFactorPage />
+            </Redicrect>
+          }
+        />
+
         <Route path="/verify-email" element={<EmailVerificationPage />} />
         <Route
           path="/forgot-password"

@@ -10,6 +10,8 @@ import {
 import crypto from 'crypto'
 import 'dotenv/config'
 import jwt from 'jsonwebtoken'
+import speakeasy from 'speakeasy'
+import qrcode from 'qrcode'
 
 export const signup = async (req, res) => {
   const { email, password, name } = req.body
@@ -101,7 +103,7 @@ export const verifyEmail = async (req, res) => {
 }
 
 export const login = async (req, res) => {
-  const { email, password } = req.body
+  const { email, password, twoFactorCode } = req.body
 
   try {
     const user = await User.findOne({ email })
@@ -124,11 +126,21 @@ export const login = async (req, res) => {
         .json({ success: false, message: 'Your account is locked' })
     }
 
+    if (user.is2FAEnabled && user.twoFactorSecret && !twoFactorCode) {
+      return res.status(200).json({
+        success: true,
+        requiresTwoFactor: true,
+        user: {
+          email: user.email,
+          _id: user._id
+        },
+        message: 'Two-factor authentication required'
+      })
+    }
+
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
       expiresIn: '1d'
     })
-
-    generateTokenAndSetCookie(res, user._id)
 
     user.lastLogin = new Date()
     user.isActive = true
@@ -139,13 +151,174 @@ export const login = async (req, res) => {
       message: 'Logged in successfully',
       user: {
         ...user._doc,
-        password: undefined
+        password: undefined,
+        twoFactorSecret: undefined
       },
       token
     })
   } catch (error) {
-    console.log('Login error:', error)
-    res.status(400).json({ success: false, message: error.message })
+    console.error('Login error:', error)
+    res.status(500).json({ success: false, message: 'Server error' })
+  }
+}
+
+export const generate2FA = async (req, res) => {
+  const { userId } = req.body
+
+  try {
+    const user = await User.findById(userId)
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    // Nếu mã bí mật đã tồn tại, không tạo mới
+    if (user.twoFactorSecret) {
+      return res.status(200).json({
+        success: true,
+        secret: user.twoFactorSecret, // Trả lại mã cũ
+        message: 'Two-factor authentication already enabled'
+      })
+    }
+
+    // Tạo mã bí mật mới nếu chưa tồn tại
+    const secret = speakeasy.generateSecret({ length: 20 })
+    user.twoFactorSecret = secret.base32
+    await user.save()
+
+    return res.status(200).json({
+      success: true,
+      secret: secret.base32, // Trả mã mới
+      otpauthUrl: secret.otpauth_url
+    })
+  } catch (error) {
+    console.error('Error generating 2FA secret:', error)
+    res.status(500).json({ success: false, message: 'Server error' })
+  }
+}
+
+export const toggle2FA = async (req, res) => {
+  const { userId, is2FAEnabled } = req.body
+
+  try {
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    user.is2FAEnabled = is2FAEnabled
+
+    let secret = null
+    let otpauthUrl = null
+
+    // Nếu bật 2FA và chưa có mã bí mật, tạo mã mới
+    if (is2FAEnabled) {
+      if (!user.twoFactorSecret) {
+        const generatedSecret = speakeasy.generateSecret({
+          length: 20,
+          name: `Certificate:(${user.email})` // Tên hiển thị trong Google Authenticator
+        })
+        user.twoFactorSecret = generatedSecret.base32
+        otpauthUrl = generatedSecret.otpauth_url
+      } else {
+        // Nếu đã có mã bí mật, tái tạo URL mã QR
+        otpauthUrl = speakeasy.otpauthURL({
+          secret: user.twoFactorSecret,
+          label: `Certificate:(${user.email})`,
+          issuer: ''
+        })
+      }
+      secret = user.twoFactorSecret
+    } else {
+      // Nếu tắt 2FA, chỉ cập nhật trạng thái, không xóa mã
+      secret = null
+      otpauthUrl = null
+    }
+
+    await user.save()
+
+    return res.status(200).json({
+      success: true,
+      message: `Two-factor authentication has been ${
+        is2FAEnabled ? 'enabled' : 'disabled'
+      }`,
+      secret,
+      otpauthUrl
+    })
+  } catch (error) {
+    console.error('Error toggling 2FA:', error)
+    res.status(500).json({ success: false, message: 'Server error' })
+  }
+}
+
+export const get2FAStatus = async (req, res) => {
+  const userId = req.user?.id // Lấy userId từ token (middleware auth)
+
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ success: false, message: 'Unauthorized: No user ID provided' })
+  }
+
+  try {
+    const user = await User.findById(userId)
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    res.status(200).json({
+      success: true,
+      is2FAEnabled: user.is2FAEnabled // Trả về trạng thái 2FA
+    })
+  } catch (error) {
+    console.error('Error fetching 2FA status:', error)
+    res.status(500).json({ success: false, message: 'Server error' })
+  }
+}
+
+export const verifyTwoFactor = async (req, res) => {
+  const { twoFactorCode, userId } = req.body
+
+  if (!twoFactorCode || !userId) {
+    return res.status(400).json({ success: false, message: 'Invalid request' })
+  }
+
+  try {
+    const user = await User.findById(userId)
+    if (!user || !user.twoFactorSecret) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'User not found or 2FA not enabled' })
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: user.twoFactorSecret,
+      encoding: 'base32',
+      token: twoFactorCode
+    })
+
+    if (!verified) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Invalid two-factor code' })
+    }
+
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+      expiresIn: '1d'
+    })
+
+    user.isActive = true
+    await user.save()
+
+    return res.status(200).json({
+      success: true,
+      message: 'Two-factor authentication verified',
+      token
+    })
+  } catch (error) {
+    console.error(error)
+    return res.status(500).json({ success: false, message: 'Server error' })
   }
 }
 
