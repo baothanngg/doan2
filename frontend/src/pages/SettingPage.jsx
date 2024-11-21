@@ -46,7 +46,17 @@ const SettingPage = () => {
         )
         const data = await response.json()
         if (data.success) {
-          setIs2FAEnabled(data.is2FAEnabled)
+          setIs2FAEnabled(data.is2FAEnabled) // Cập nhật trạng thái 2FA
+          setSecret(data.secret) // Cập nhật mã bí mật
+          if (data.otpauthUrl) {
+            QRCode.toDataURL(data.otpauthUrl, (err, url) => {
+              if (err) {
+                console.error('Lỗi khi tạo QR Code:', err)
+                return
+              }
+              setQrCodeUrl(url) // Cập nhật URL QR Code
+            })
+          }
         }
       } catch (error) {
         console.error('Lỗi khi lấy trạng thái 2FA:', error)

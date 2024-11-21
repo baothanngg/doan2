@@ -252,7 +252,7 @@ export const toggle2FA = async (req, res) => {
 }
 
 export const get2FAStatus = async (req, res) => {
-  const userId = req.user?.id // Lấy userId từ token (middleware auth)
+  const userId = req.userId // Lấy userId từ middleware `verifyToken`
 
   if (!userId) {
     return res
@@ -269,7 +269,11 @@ export const get2FAStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      is2FAEnabled: user.is2FAEnabled // Trả về trạng thái 2FA
+      is2FAEnabled: user.is2FAEnabled, // Trạng thái 2FA
+      secret: user.twoFactorSecret, // Trả về mã bí mật (nếu cần)
+      otpauthUrl: user.is2FAEnabled
+        ? `otpauth://totp/MyApp?secret=${user.twoFactorSecret}&issuer=MyApp`
+        : null // URL QR Code nếu đang bật
     })
   } catch (error) {
     console.error('Error fetching 2FA status:', error)
