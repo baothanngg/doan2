@@ -62,7 +62,7 @@ const InformationPage = () => {
 
   return (
     <div className="flex flex-col h-fit p-8">
-      <h1 className="text-2xl font-bold mb-4">Thông tin chi ti</h1>
+      <h1 className="text-2xl font-bold mb-4">Thông tin chi tiết</h1>
       <nav className="mb-4 text-sm text-gray-500">
         <Link to="/" className="hover:underline">
           Tổng quan
@@ -141,18 +141,21 @@ const InformationPage = () => {
                 </tr>
                 <tr>
                   <th className="border border-gray-300 px-4 py-2">
-                    Người cấp
+                    Địa chỉ validator yêu cầu thêm khối
                   </th>
                   <td className="border border-gray-300 px-4 py-2">
-                    {certificateInfo.issuer}
+                    {certificateInfo.miner}
                   </td>
                 </tr>
                 <tr>
                   <th className="border border-gray-300 px-4 py-2">
-                    Phí giao dịch (Ether)
+                    Địa chỉ các validator đã chấp thuận
                   </th>
                   <td className="border border-gray-300 px-4 py-2">
-                    {certificateInfo.transactionFeeInEther}
+                    {certificateInfo.validatorAddresses &&
+                      certificateInfo.validatorAddresses.map(
+                        (address, index) => <div key={index}>{address}</div>
+                      )}
                   </td>
                 </tr>
                 <tr>

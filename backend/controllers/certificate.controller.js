@@ -4,14 +4,35 @@ import { User } from '../models/user.model.js'
 import { getContract } from '../utils/contract.js'
 import { create } from 'ipfs-http-client'
 import { getNextSequence } from '../utils/getNextSequence.js'
-import { ethers } from 'ethers'
+import { ethers, keccak256 } from 'ethers'
+import Tesseract from 'tesseract.js'
+import path from 'path'
 import 'dotenv/config'
+import axios from 'axios'
 
 // Kết nối với IPFS
 const ipfs = create({ host: '127.0.0.1', port: 5001, protocol: 'http' })
 
 // Cấu hình multer để xử lý file upload
 const upload = multer({ storage: multer.memoryStorage() })
+
+const getProvider = async () => {
+  const RPC_URLS = process.env.RPC_URLS.split(',')
+
+  let provider
+  for (const url of RPC_URLS) {
+    try {
+      provider = new ethers.JsonRpcProvider(url)
+      await provider.getBlockNumber() // Kiểm tra kết nối
+      console.log(`Kết nối thành công với node: ${url}`)
+      return provider
+    } catch (error) {
+      console.error(`Không thể kết nối với node: ${url}`, error.message)
+    }
+  }
+
+  throw new Error('Không thể kết nối với bất kỳ node nào!')
+}
 
 export const issueCertificate = async (req, res) => {
   const { userId, recipientName, courseName, issueDate } = req.body
@@ -65,7 +86,7 @@ export const finalizeCertificateIssue = async (req, res) => {
     )
     const certificateId = ethers.keccak256(data)
 
-    // Gọi addCertificate và lấy transaction hash
+    // Gọi addCertificate và chờ giao dịch được xác nhận
     const tx = await contract.addCertificate(
       recipientName,
       courseName,
@@ -75,6 +96,16 @@ export const finalizeCertificateIssue = async (req, res) => {
     )
     console.log('Transaction hash:', tx.hash)
 
+    // Kiểm tra xem giao dịch có được xác nhận không
+    const provider = contract.provider || (await getProvider())
+
+    const receipt = await provider.waitForTransaction(tx.hash, 1, 30000) // Timeout 30 giây
+    if (!receipt || receipt.status === 0) {
+      throw new Error('Giao dịch blockchain không thành công')
+    }
+
+    console.log('Giao dịch blockchain đã xác nhận:', receipt.transactionHash)
+
     // Lưu file chứng chỉ vào IPFS
     const fileBuffer = Buffer.from(dataUrl.split(',')[1], 'base64')
     const { cid } = await ipfs.add(
@@ -83,7 +114,25 @@ export const finalizeCertificateIssue = async (req, res) => {
     )
 
     // Thêm CID vào MFS (Mutable File System) để xuất hiện trong WebUI
-    await ipfs.files.cp(`/ipfs/${cid.toString()}`, `/${courseCode}`)
+    try {
+      // Kiểm tra và xóa entry nếu tồn tại
+      try {
+        await ipfs.files.rm(`/${courseCode}`, { recursive: true })
+        console.log(`Đã xóa entry hiện có: /${courseCode}`)
+      } catch (error) {
+        if (error.message.includes('does not exist')) {
+          console.log(`Entry /${courseCode} không tồn tại, tiếp tục.`)
+        } else {
+          throw error // Nếu lỗi khác, ném lỗi
+        }
+      }
+
+      // Thực hiện sao chép file mới
+      await ipfs.files.cp(`/ipfs/${cid.toString()}`, `/${courseCode}`)
+      console.log(`File đã được sao chép vào: /${courseCode}`)
+    } catch (error) {
+      console.error(`Lỗi khi ghi đè file vào MFS:`, error.message)
+    }
 
     // Lưu chứng chỉ vào MongoDB
     const certificate = new Certificate({
@@ -299,6 +348,16 @@ export const verifyCertificateByImage = async (req, res) => {
   }
 }
 
+export const tryExtractText = async (buffer) => {
+  try {
+    const { data } = await Tesseract.recognize(buffer, 'eng')
+    return data.text
+  } catch (error) {
+    console.error('Lỗi khi trích xuất văn bản từ ảnh:', error.message)
+    return null
+  }
+}
+
 export const getUserCertificates = async (req, res) => {
   try {
     const userId = req.userId
@@ -330,10 +389,10 @@ export const getUserCertificates = async (req, res) => {
 
 export const getCertificateByTxHash = async (req, res) => {
   const { blockchainTxHash } = req.params
-  const RPC_URL = process.env.RPC_URL
+  const RPC_URLS = process.env.RPC_URLS.split(',')
 
   try {
-    const provider = new ethers.JsonRpcProvider(RPC_URL)
+    const provider = await getProvider()
     const tx = await provider.getTransaction(blockchainTxHash)
 
     if (!tx) {
@@ -347,6 +406,31 @@ export const getCertificateByTxHash = async (req, res) => {
         .status(404)
         .json({ message: 'Transaction receipt not found or has no logs' })
     }
+
+    // Lấy thông tin block từ blockNumber
+    const block = await provider.getBlock(receipt.blockNumber)
+    if (!block) {
+      return res.status(404).json({ message: 'Block not found' })
+    }
+
+    // Sử dụng JSON-RPC để lấy danh sách validator đã chấp thuận
+    const blockNumberHex = `0x${receipt.blockNumber.toString(16)}` // Chuyển blockNumber sang hex
+    const rpcPayload = {
+      jsonrpc: '2.0',
+      method: 'ibft_getValidatorsByBlockNumber',
+      params: [blockNumberHex],
+      id: 1
+    }
+
+    // Gửi yêu cầu JSON-RPC qua URL từ biến môi trường
+    const rpcResponse = await axios.post(RPC_URLS[0], rpcPayload)
+
+    // Kiểm tra phản hồi từ JSON-RPC
+    if (!rpcResponse.data || !rpcResponse.data.result) {
+      throw new Error('Không thể lấy danh sách validator từ JSON-RPC')
+    }
+
+    const validatorAddresses = rpcResponse.data.result
 
     // Kết nối tới smart contract
     const contract = await getContract()
@@ -398,14 +482,13 @@ export const getCertificateByTxHash = async (req, res) => {
     }
 
     // Tính phí giao dịch
-    const gasUsed = receipt.gasUsed.toBigInt
-      ? receipt.gasUsed.toBigInt()
-      : BigInt(receipt.gasUsed.toString()) // Chuyển gasUsed thành BigInt
-    const gasPrice = tx.gasPrice.toBigInt
-      ? tx.gasPrice.toBigInt()
-      : BigInt(tx.gasPrice.toString()) // Chuyển gasPrice thành BigInt
-    const transactionFee = (gasUsed * gasPrice).toString() // Tính phí giao dịch
+    const gasUsed = BigInt(receipt.gasUsed.toString())
+    const gasPrice = BigInt(tx.gasPrice.toString())
+    const transactionFee = (gasUsed * gasPrice).toString() // Phí giao dịch bằng Wei
     const transactionFeeInEther = ethers.formatEther(transactionFee) // Chuyển sang Ether
+
+    // Lấy thông tin miner
+    const miner = block.miner
 
     // Tạo đối tượng chứng chỉ
     const certificate = {
@@ -420,6 +503,8 @@ export const getCertificateByTxHash = async (req, res) => {
       gasPrice: tx.gasPrice.toString(),
       transactionFee, // Phí giao dịch tính bằng Wei
       transactionFeeInEther, // Phí giao dịch tính bằng Ether
+      miner, // Thông tin người đào
+      validatorAddresses, // Địa chỉ các validator
       from: tx.from,
       to: tx.to,
       blockNumber: tx.blockNumber,

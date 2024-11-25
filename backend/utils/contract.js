@@ -253,18 +253,32 @@ const ABI = [
   }
 ]
 
-const CONTRACT_ADDRESS = '0x66E6BC965C4424A7A18629D47AD453f6F8958665'
-const RPC_URL = process.env.RPC_URL
+const CONTRACT_ADDRESS = '0x42699A7612A82f1d9C36148af9C77354759b210b'
+const RPC_URLS = process.env.RPC_URLS.split(',')
 const PRIVATE_KEY = process.env.PRIVATE_KEY
 
 export const getContract = async () => {
-  if (!RPC_URL || !PRIVATE_KEY) {
-    console.error('RPC_URL hoặc PRIVATE_KEY chưa được cấu hình!')
+  if (!RPC_URLS || !PRIVATE_KEY) {
+    console.error('RPC_URLS hoặc PRIVATE_KEY chưa được cấu hình!')
     return
   }
 
-  // Tạo provider để kết nối đến blockchain
-  const provider = new ethers.JsonRpcProvider(RPC_URL)
+  let provider
+  for (const url of RPC_URLS) {
+    try {
+      provider = new ethers.JsonRpcProvider(url)
+      await provider.getBlockNumber() // Kiểm tra kết nối
+      console.log(`Kết nối thành công với node: ${url}`)
+      break
+    } catch (error) {
+      console.error(`Không thể kết nối với node: ${url}`, error.message)
+    }
+  }
+
+  if (!provider) {
+    console.error('Không thể kết nối với bất kỳ node nào!')
+    return
+  }
 
   // Tạo ví từ khóa riêng và kết nối với provider
   const wallet = new ethers.Wallet(PRIVATE_KEY, provider)

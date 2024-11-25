@@ -10,7 +10,8 @@ import {
   Award,
   ShieldCheck,
   FileBadge2,
-  FileUser
+  FileUser,
+  Cuboid
 } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
 const Layout = ({ children }) => {
@@ -52,6 +53,12 @@ const Layout = ({ children }) => {
               text="Thông tin"
               active={location.pathname === '/information'}
             />
+            {/* <SidebarItem
+              to={'/blockchain'}
+              icon={<Cuboid size={20} />}
+              text="Blockchain"
+              active={location.pathname === '/blockchain'}
+            /> */}
             <hr className="my-3" />
             <SidebarItem
               icon={<UserRoundPen size={20} />}

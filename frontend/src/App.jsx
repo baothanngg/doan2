@@ -20,6 +20,7 @@ import MyCertificatePage from './pages/MyCertificatePage'
 import InformationPage from './pages/InformationPage'
 import SettingPage from './pages/SettingPage'
 import TwoFactorPage from './pages/TwoFactorPage'
+import BlockchainPage from './pages/BlockchainPage'
 
 // Chuyen huong nguoi dung
 const Redicrect = ({ children }) => {
@@ -160,6 +161,19 @@ function App() {
               <div className="absolute inset-0 bg-white z-10">
                 <Layout>
                   <InformationPage />
+                </Layout>
+              </div>
+            </AdminRoute>
+          }
+        />
+
+        <Route
+          path="/blockchain"
+          element={
+            <AdminRoute>
+              <div className="absolute inset-0 bg-white z-10">
+                <Layout>
+                  <BlockchainPage />
                 </Layout>
               </div>
             </AdminRoute>

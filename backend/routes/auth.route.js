@@ -35,6 +35,13 @@ import {
   getNewCertificates
 } from '../controllers/dashboard.controller.js'
 
+import {
+  getNodeStatus,
+  startNode,
+  stopNode,
+  getBlocksWithTransactions
+} from '../controllers/blockchain.controller.js'
+
 const upload = multer({ storage: multer.memoryStorage() })
 
 const router = express.Router()
@@ -92,5 +99,10 @@ router.get('/stats', verifyToken, getDashboardStats)
 router.get('/new-certificates', verifyToken, getNewCertificates)
 
 router.get('/certificate/:blockchainTxHash', getCertificateByTxHash)
+
+router.get('/nodes', getNodeStatus) // Lấy trạng thái node
+router.post('/nodes/:nodeId/start', startNode) // Bật node
+router.post('/nodes/:nodeId/stop', stopNode) // Tắt node
+router.get('/blocks', getBlocksWithTransactions) // Lấy block có dữ liệu
 
 export default router
