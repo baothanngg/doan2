@@ -265,14 +265,24 @@ const VerifyByImage = () => {
             {verificationResult.message}
           </p>
           {verificationResult.viewLink && (
-            <a
-              href={verificationResult.viewLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 hover:underline"
-            >
-              Xem Chứng Chỉ
-            </a>
+            <div>
+              <a
+                href={verificationResult.viewLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-500 hover:underline"
+              >
+                Xem Chứng Chỉ
+              </a>
+
+              <div className="flex justify-center mt-4">
+                <img
+                  src={verificationResult.viewLink}
+                  alt="Certificate"
+                  width={800}
+                />
+              </div>
+            </div>
           )}
         </div>
       )}

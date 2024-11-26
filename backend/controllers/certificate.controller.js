@@ -9,9 +9,19 @@ import Tesseract from 'tesseract.js'
 import path from 'path'
 import 'dotenv/config'
 import axios from 'axios'
+import { exec } from 'child_process'
+import stringSimilarity from 'string-similarity'
+import { fileURLToPath } from 'url'
+import fs from 'fs/promises'
+import util from 'util'
 
 // Kết nối với IPFS
 const ipfs = create({ host: '127.0.0.1', port: 5001, protocol: 'http' })
+
+const execPromise = util.promisify(exec)
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 // Cấu hình multer để xử lý file upload
 const upload = multer({ storage: multer.memoryStorage() })
@@ -219,9 +229,19 @@ export const getIssuedCertificates = async (req, res) => {
 
 export const redirectToIPFS = async (req, res) => {
   try {
-    const certificate = await Certificate.findById(req.params.id).select(
-      'ipfsCID'
-    )
+    const { id } = req.params // Lấy `id` từ params
+    let certificate
+
+    // Kiểm tra nếu `id` là ObjectId hợp lệ
+    if (/^[0-9a-fA-F]{24}$/.test(id)) {
+      certificate = await Certificate.findById(id).select('ipfsCID')
+    } else {
+      // Nếu không, giả sử nó là `courseCode`
+      certificate = await Certificate.findOne({ courseCode: id }).select(
+        'ipfsCID'
+      )
+    }
+
     if (!certificate) {
       return res.status(404).json({ message: 'Chứng chỉ không tồn tại' })
     }
@@ -305,46 +325,207 @@ export const verifyCertificateByInfo = async (req, res) => {
   }
 }
 
+// export const verifyCertificateByImage = async (req, res) => {
+//   try {
+//     const { buffer } = req.file
+
+//     const result = await ipfs.add(buffer, { onlyHash: true })
+//     const ipfsCID = result.cid.toString()
+
+//     // Kết nối với smart contract
+//     const contract = await getContract()
+//     if (!contract) {
+//       throw new Error('Không thể kết nối với smart contract')
+//     }
+
+//     const isValid = await contract.verifyCertificateByCID(ipfsCID)
+
+//     if (isValid) {
+//       // Tìm chứng chỉ trong MongoDB để lấy _id
+//       const certificate = await Certificate.findOne({ ipfsCID })
+
+//       if (!certificate) {
+//         return res.status(404).json({
+//           message: 'Chứng chỉ không tồn tại trong cơ sở dữ liệu'
+//         })
+//       }
+
+//       res.status(200).json({
+//         message: 'Chứng chỉ hợp lệ',
+//         viewLink: `http://localhost:5000/api/auth/view/${certificate._id}`
+//       })
+//     } else {
+//       res.status(404).json({
+//         message: 'Chứng chỉ không tồn tại'
+//       })
+//     }
+//   } catch (error) {
+//     console.error('Lỗi khi xác minh chứng chỉ:', error)
+//     res.status(500).json({
+//       message: 'Lỗi khi xác minh chứng chỉ',
+//       error: error.message
+//     })
+//   }
+// }
+
 export const verifyCertificateByImage = async (req, res) => {
+  const tempImagePath = path.join(__dirname, '..', 'temp_image.png')
   try {
     const { buffer } = req.file
 
+    // **Bước 1: Tạo CID từ IPFS**
     const result = await ipfs.add(buffer, { onlyHash: true })
     const ipfsCID = result.cid.toString()
 
-    // Kết nối với smart contract
+    // **Bước 2: Kết nối với Smart Contract và kiểm tra CID**
     const contract = await getContract()
-    if (!contract) {
-      throw new Error('Không thể kết nối với smart contract')
-    }
+    if (!contract) throw new Error('Không thể kết nối với smart contract')
 
     const isValid = await contract.verifyCertificateByCID(ipfsCID)
-
     if (isValid) {
-      // Tìm chứng chỉ trong MongoDB để lấy _id
       const certificate = await Certificate.findOne({ ipfsCID })
-
       if (!certificate) {
-        return res.status(404).json({
-          message: 'Chứng chỉ không tồn tại trong cơ sở dữ liệu'
-        })
+        return res
+          .status(404)
+          .json({ message: 'Chứng chỉ không tồn tại trong cơ sở dữ liệu' })
       }
-
-      res.status(200).json({
+      return res.status(200).json({
         message: 'Chứng chỉ hợp lệ',
         viewLink: `http://localhost:5000/api/auth/view/${certificate._id}`
       })
+    }
+
+    // **Bước 3: CID không khớp - Chạy Python OCR**
+    await fs.writeFile(tempImagePath, buffer)
+
+    const pythonScriptPath = path.resolve(__dirname, 'extract_text.py')
+    const command = `python "${pythonScriptPath}" "${tempImagePath}"`
+
+    const { stdout, stderr } = await execPromise(command)
+
+    if (stderr) {
+      console.error('Lỗi khi chạy Python OCR:', stderr)
+      return res
+        .status(500)
+        .json({ message: 'Lỗi khi chạy Python OCR', error: stderr })
+    }
+
+    let ocrResults
+    try {
+      const parsedOutput = JSON.parse(stdout)
+      if (parsedOutput.status === 'success') {
+        ocrResults = parsedOutput.data.filter(
+          (text) => typeof text === 'string'
+        )
+        console.log(ocrResults)
+      } else {
+        throw new Error(parsedOutput.message || 'OCR không thành công')
+      }
+    } catch (err) {
+      console.error('Lỗi khi phân tích JSON từ Python OCR:', err.message)
+      return res.status(500).json({
+        message: 'Lỗi khi phân tích JSON từ Python OCR',
+        error: err.message
+      })
+    }
+
+    // **Bước 4: So khớp thông tin OCR với dữ liệu BC**
+
+    const certificateIds = await contract.getAllCertificateIds()
+    let matchedCertificate = null
+    let matchedCourseCode = null // Lưu courseCode khớp
+
+    for (const certificateId of certificateIds) {
+      const certificate = await contract.certificates(certificateId)
+
+      if (!certificate) continue // Bỏ qua nếu certificate không tồn tại
+
+      // Chuyển đổi issueDate từ BigInt sang timestamp
+      const issueDateTimestamp = Number(certificate.issueDate) * 1000
+      const issueDateFormatted = new Date(issueDateTimestamp)
+        .toISOString()
+        .split('T')[0] // "YYYY-MM-DD"
+
+      // So sánh tên người nhận
+      const isNameMatch = ocrResults.some(
+        (text) =>
+          typeof text === 'string' &&
+          typeof certificate.recipientName === 'string' &&
+          stringSimilarity.compareTwoStrings(
+            text.toLowerCase(),
+            certificate.recipientName.toLowerCase()
+          ) > 0.8
+      )
+
+      // So sánh tên khóa học
+      const isCourseMatch = ocrResults.some(
+        (text) =>
+          typeof text === 'string' &&
+          typeof certificate.courseName === 'string' &&
+          stringSimilarity.compareTwoStrings(
+            text.toLowerCase(),
+            certificate.courseName.toLowerCase()
+          ) > 0.8
+      )
+
+      // So sánh ngày cấp
+      const isDateMatch = ocrResults.some(
+        (text) =>
+          typeof text === 'string' &&
+          stringSimilarity.compareTwoStrings(
+            text.trim(),
+            issueDateFormatted.trim()
+          ) > 0.8
+      )
+
+      // So sánh mã khóa học
+      const isCourseCodeMatch = ocrResults.some(
+        (text) =>
+          typeof text === 'string' &&
+          typeof certificate.courseCode === 'string' &&
+          stringSimilarity.compareTwoStrings(
+            text.toLowerCase(),
+            certificate.courseCode.toLowerCase()
+          ) > 0.8
+      )
+
+      if (isNameMatch && isCourseMatch && isDateMatch && isCourseCodeMatch) {
+        matchedCertificate = certificate
+        matchedCourseCode = certificate.courseCode // Lưu courseCode khớp
+        break
+      }
+    }
+
+    if (matchedCertificate) {
+      return res.status(200).json({
+        message: 'Chứng chỉ hợp lệ',
+        matchedCertificate: {
+          courseCode: matchedCourseCode, // Sử dụng courseCode
+          recipientName: matchedCertificate.recipientName,
+          courseName: matchedCertificate.courseName,
+          issueDate: new Date(Number(matchedCertificate.issueDate) * 1000)
+            .toISOString()
+            .split('T')[0], // Chuyển đổi ngày cấp
+          ipfsCID: matchedCertificate.ipfsCID,
+          issuer: matchedCertificate.issuer
+        },
+        viewLink: `http://localhost:5000/api/auth/view/${matchedCourseCode}` // Liên kết đến chứng chỉ
+      })
     } else {
-      res.status(404).json({
-        message: 'Chứng chỉ không tồn tại'
+      return res.status(404).json({
+        message: 'Chứng chỉ không tồn tại hoặc thông tin không khớp',
+        ocrResults
       })
     }
   } catch (error) {
     console.error('Lỗi khi xác minh chứng chỉ:', error)
-    res.status(500).json({
+    return res.status(500).json({
       message: 'Lỗi khi xác minh chứng chỉ',
       error: error.message
     })
+  } finally {
+    // **Xóa file ảnh tạm**
+    await fs.unlink(tempImagePath).catch(() => {})
   }
 }
 
