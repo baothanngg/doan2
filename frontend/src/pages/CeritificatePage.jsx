@@ -65,7 +65,9 @@ const NewCertificate = () => {
   const [certificateUrl, setCertificateUrl] = useState('')
   const [tempCertificateUrl, setTempCertificateUrl] = useState('')
   const [showPreview, setShowPreview] = useState(false)
-  const [storedCourseCode, setStoredCourseCode] = useState('') // Tạm lưu courseCode để cấp chứng chỉ sau
+  const [storedCourseCode, setStoredCourseCode] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState(0)
 
   // Fetch danh sách người dùng
   useEffect(() => {
@@ -158,6 +160,8 @@ const NewCertificate = () => {
       alert('Vui lòng chọn người nhận')
       return
     }
+    setIsLoading(true) // Bật trạng thái tải
+    setProgress(10) // Bắt đầu với 10%
 
     try {
       // Gửi yêu cầu tạo chứng chỉ và nhận lại thông tin
@@ -175,19 +179,21 @@ const NewCertificate = () => {
       })
 
       const data = await response.json()
+      setProgress(40)
+
       if (response.ok) {
         const { courseCode } = data
 
         // Vẽ chứng chỉ với mã QR chứa URL với courseCode
         const finalDataUrl = await drawCertificate(courseCode)
-
+        setProgress(70)
         // Chuyển đổi ảnh sang buffer và lưu lên IPFS
         const base64Data = finalDataUrl.replace(/^data:image\/\w+;base64,/, '')
         const buffer = Buffer.from(base64Data, 'base64')
         const result = await ipfs.add(buffer)
         const ipfsCID = result.cid.toString()
 
-        console.log('CID từ IPFS:', ipfsCID)
+        setProgress(90)
 
         // Gửi finalize để lưu chứng chỉ thực
         const finalizeResponse = await fetch(
@@ -210,6 +216,7 @@ const NewCertificate = () => {
         )
 
         const finalizeData = await finalizeResponse.json()
+        setProgress(100)
         if (finalizeResponse.ok) {
           setCertificateUrl(finalDataUrl)
           alert('Chứng chỉ đã được cấp thành công!')
@@ -222,6 +229,9 @@ const NewCertificate = () => {
     } catch (error) {
       console.error('Lỗi khi cấp chứng chỉ:', error)
       alert('Đã có lỗi xảy ra khi cấp chứng chỉ.')
+    } finally {
+      setIsLoading(false) 
+      setProgress(0) 
     }
   }
 
@@ -335,6 +345,18 @@ const NewCertificate = () => {
         </button>
       </form>
 
+      {isLoading && (
+        <div className="mt-4">
+          <div className="w-full bg-gray-200 rounded-full h-4">
+            <div
+              className="bg-green-500 h-4 rounded-full animate-pulse"
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
+          <p className="text-gray-600 mt-2">Đang xử lý... {progress}%</p>
+        </div>
+      )}
+
       {tempCertificateUrl && (
         <div className="mt-8">
           <h3
@@ -386,7 +408,7 @@ const IssuedCertificates = () => {
       }
     },
     {
-      name: 'blockchainTxHash', 
+      name: 'blockchainTxHash',
       label: 'Chi Tiết',
       options: {
         filter: false,

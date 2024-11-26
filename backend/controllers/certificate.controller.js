@@ -435,6 +435,10 @@ export const verifyCertificateByImage = async (req, res) => {
     let matchedCertificate = null
     let matchedCourseCode = null // Lưu courseCode khớp
 
+    // Ghép toàn bộ chuỗi OCR thành một đoạn văn bản duy nhất
+    const combinedOCRText = ocrResults.join(' ').toLowerCase()
+    console.log('Combined OCR Text:', combinedOCRText)
+
     for (const certificateId of certificateIds) {
       const certificate = await contract.certificates(certificateId)
 
@@ -446,49 +450,24 @@ export const verifyCertificateByImage = async (req, res) => {
         .toISOString()
         .split('T')[0] // "YYYY-MM-DD"
 
-      // So sánh tên người nhận
-      const isNameMatch = ocrResults.some(
-        (text) =>
-          typeof text === 'string' &&
-          typeof certificate.recipientName === 'string' &&
-          stringSimilarity.compareTwoStrings(
-            text.toLowerCase(),
-            certificate.recipientName.toLowerCase()
-          ) > 0.8
-      )
+      // So sánh từng trường dữ liệu với đoạn văn OCR
+      const isNameMatch =
+        typeof certificate.recipientName === 'string' &&
+        combinedOCRText.includes(certificate.recipientName.toLowerCase())
 
-      // So sánh tên khóa học
-      const isCourseMatch = ocrResults.some(
-        (text) =>
-          typeof text === 'string' &&
-          typeof certificate.courseName === 'string' &&
-          stringSimilarity.compareTwoStrings(
-            text.toLowerCase(),
-            certificate.courseName.toLowerCase()
-          ) > 0.8
-      )
+      const isCourseMatch =
+        typeof certificate.courseName === 'string' &&
+        combinedOCRText.includes(certificate.courseName.toLowerCase())
 
-      // So sánh ngày cấp
-      const isDateMatch = ocrResults.some(
-        (text) =>
-          typeof text === 'string' &&
-          stringSimilarity.compareTwoStrings(
-            text.trim(),
-            issueDateFormatted.trim()
-          ) > 0.8
-      )
+      const isDateMatch =
+        typeof issueDateFormatted === 'string' &&
+        combinedOCRText.includes(issueDateFormatted)
 
-      // So sánh mã khóa học
-      const isCourseCodeMatch = ocrResults.some(
-        (text) =>
-          typeof text === 'string' &&
-          typeof certificate.courseCode === 'string' &&
-          stringSimilarity.compareTwoStrings(
-            text.toLowerCase(),
-            certificate.courseCode.toLowerCase()
-          ) > 0.8
-      )
+      const isCourseCodeMatch =
+        typeof certificate.courseCode === 'string' &&
+        combinedOCRText.includes(certificate.courseCode.toLowerCase())
 
+      // Kiểm tra tất cả các điều kiện đều khớp
       if (isNameMatch && isCourseMatch && isDateMatch && isCourseCodeMatch) {
         matchedCertificate = certificate
         matchedCourseCode = certificate.courseCode // Lưu courseCode khớp
