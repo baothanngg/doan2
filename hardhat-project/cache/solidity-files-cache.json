@@ -1,0 +1,41 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "D:\\workspace\\atantt_final\\doan2\\hardhat-project\\contracts\\Certificate.sol": {
+      "lastModificationDate": 1733318413030,
+      "contentHash": "1dd5a5af2938f534551b2eebb2539c31",
+      "sourceName": "contracts/Certificate.sol",
+      "solcConfig": {
+        "version": "0.8.27",
+        "settings": {
+          "evmVersion": "paris",
+          "optimizer": {
+            "enabled": false,
+            "runs": 200
+          },
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        ">=0.8.2 <0.9.0"
+      ],
+      "artifacts": [
+        "CertificateStorage"
+      ]
+    }
+  }
+}

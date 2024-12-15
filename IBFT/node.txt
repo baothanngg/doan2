@@ -1,0 +1,87 @@
+rm -rf Node-1/data/*
+rm -rf Node-2/data/*
+rm -rf Node-3/data/*
+rm -rf Node-4/data/*
+
+
+besu operator generate-blockchain-config --config-file=ibftConfigFile.json --to=networkFiles --private-key-file-name=key
+
+
+================================================================
+
+
+besu --data-path=data --genesis-file=../genesis.json --rpc-http-enabled --rpc-http-api=ETH,NET,WEB3,TXPOOL,ADMIN,IBFT  --host-allowlist="*" --rpc-http-cors-origins="all" --profile=ENTERPRISE 
+
+besu --data-path=data --genesis-file=../genesis.json --bootnodes=enode://c177d0e273fa5536c7ae4b461a45b692d536d5f5ca6fadeec175b2d716e125d03e5c78357403159d6b333b10b023e6bdcc3224c59d778285e6b86645539660d3@127.0.0.1:30303 --p2p-port=30304 --rpc-http-enabled --rpc-http-api=ETH,NET,WEB3,TXPOOL,ADMIN,IBFT  --host-allowlist="*" --rpc-http-cors-origins="all" --rpc-http-port=8546 --profile=ENTERPRISE 
+
+besu --data-path=data --genesis-file=../genesis.json --bootnodes=enode://c177d0e273fa5536c7ae4b461a45b692d536d5f5ca6fadeec175b2d716e125d03e5c78357403159d6b333b10b023e6bdcc3224c59d778285e6b86645539660d3@127.0.0.1:30303 --p2p-port=30305 --rpc-http-enabled --rpc-http-api=ETH,NET,WEB3,TXPOOL,ADMIN,IBFT  --host-allowlist="*" --rpc-http-cors-origins="all" --rpc-http-port=8547 --profile=ENTERPRISE 
+
+besu --data-path=data --genesis-file=../genesis.json --bootnodes=enode://c177d0e273fa5536c7ae4b461a45b692d536d5f5ca6fadeec175b2d716e125d03e5c78357403159d6b333b10b023e6bdcc3224c59d778285e6b86645539660d3@127.0.0.1:30303 --p2p-port=30306 --rpc-http-enabled --rpc-http-api=ETH,NET,WEB3,TXPOOL,ADMIN,IBFT  --host-allowlist="*" --rpc-http-cors-origins="all" --rpc-http-port=8548 --profile=ENTERPRISE 
+
+ipfs 
+
+
+================================================================
+
+
+
+
+
+
+
+
+
+kiem tra validator
+curl -X POST --data '{"jsonrpc":"2.0","method":"ibft_getValidatorsByBlockNumber","params":["latest"], "id":1}' localhost:8545
+
+kiem tra data 
+curl -X POST --data '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", true],"id":1}' http://127.0.0.1:8545
+
+so luong peer ket noi
+curl -X POST \
+  --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' \
+  http://127.0.0.1:8545
+
+Lay thong tin khoi moi nhat 
+curl -X POST \
+  --data '{"jsonrpc":"2.0","method":"eth_getBlockByNumber","params":["latest", true],"id":1}' \
+  http://127.0.0.1:8545
+
+
+Kiem tra tai khoan 
+curl -X POST \
+  --data '{"jsonrpc":"2.0","method":"eth_getBalance","params":["0xYourAddress", "latest"],"id":1}' \
+  http://127.0.0.1:8545
+
+Gui giao dich 
+curl -X POST \
+  --data '{"jsonrpc":"2.0","method":"eth_sendTransaction","params":[{"from":"0xYourAddress","to":"0xRecipientAddress","value":"0x9184e72a"}],"id":1}' \
+  http://127.0.0.1:8545
+
+Xem giao dich trong pool 
+curl -X POST \
+  --data '{"jsonrpc":"2.0","method":"txpool_content","params":[],"id":1}' \
+  http://127.0.0.1:8545
+
+Kiem tra chi tiet giao dich 
+curl -X POST \
+  --data '{"jsonrpc":"2.0","method":"eth_getTransactionByHash","params":["0xTransactionHash"],"id":1}' \
+  http://127.0.0.1:8545
+
+Tao tai khoan moi 
+curl -X POST \
+  --data '{"jsonrpc":"2.0","method":"personal_newAccount","params":["YourPassword"],"id":1}' \
+  http://127.0.0.1:8545
+
+Unlock tai khoan 
+curl -X POST \
+  --data '{"jsonrpc":"2.0","method":"personal_unlockAccount","params":["0xYourAddress", "YourPassword", 3600],"id":1}' \
+  http://127.0.0.1:8545
+
+Kiem tra trang thai dong bo 
+curl -X POST \
+  --data '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' \
+  http://127.0.0.1:8545
+
+Xem ai da ky khoi 
+curl -X POST --data '{"jsonrpc":"2.0","method":"ibft_getValidatorsByBlockNumber","params":["208"],"id":1}' http://127.0.0.1:8545
