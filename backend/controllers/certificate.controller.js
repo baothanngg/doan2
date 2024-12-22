@@ -208,7 +208,7 @@ export const getIssuedCertificates = async (req, res) => {
     const formattedData = certificates.map((cert, index) => ({
       id: String(index + 1).padStart(1, '0'),
       _id: cert._id, // Sử dụng ID thay vì CID
-      name: cert.recipientName,
+      name: cert.recipientName, 
       certificate: cert.courseName,
       issuedDate: new Date(cert.issueDate).toLocaleDateString('vi-VN'), // Định dạng ngày,
       blockchainTxHash: cert.blockchainTxHash
@@ -252,7 +252,7 @@ export const redirectToIPFS = async (req, res) => {
     // Sử dụng fetch để lấy nội dung từ IPFS
     const response = await fetch(ipfsGatewayUrl)
     if (!response.ok) {
-      throw new Error(
+      throw new Error(  
         `Không thể truy cập nội dung từ IPFS. HTTP status: ${response.status}`
       )
     }
@@ -574,7 +574,7 @@ export const getCertificateByTxHash = async (req, res) => {
     }
 
     // Sử dụng JSON-RPC để lấy danh sách validator đã chấp thuận
-    const blockNumberHex = `0x${receipt.blockNumber.toString(16)}` // Chuyển blockNumber sang hex
+    const blockNumberHex = `0x${receipt.blockNumber.toString(16)}`
     const rpcPayload = {
       jsonrpc: '2.0',
       method: 'ibft_getValidatorsByBlockNumber',
@@ -582,12 +582,25 @@ export const getCertificateByTxHash = async (req, res) => {
       id: 1
     }
 
-    // Gửi yêu cầu JSON-RPC qua URL từ biến môi trường
-    const rpcResponse = await axios.post(RPC_URLS[0], rpcPayload)
+    // Thử lần lượt các node trong RPC_URLS cho đến khi thành công
+    let rpcResponse
+    let lastError
+    for (const rpcUrl of RPC_URLS) {
+      try {
+        rpcResponse = await axios.post(rpcUrl, rpcPayload)
+        if (rpcResponse.data && rpcResponse.data.result) {
+          // Nếu thành công thì break ra khỏi vòng lặp
+          break
+        }
+      } catch (error) {
+        lastError = error
+        // Tiếp tục vòng lặp để thử node tiếp theo
+      }
+    }
 
-    // Kiểm tra phản hồi từ JSON-RPC
-    if (!rpcResponse.data || !rpcResponse.data.result) {
-      throw new Error('Không thể lấy danh sách validator từ JSON-RPC')
+    // Nếu sau khi thử tất cả các node mà vẫn không thành công
+    if (!rpcResponse || !rpcResponse.data || !rpcResponse.data.result) {
+      throw new Error('Không thể lấy danh sách validator từ bất kỳ RPC node nào')
     }
 
     const validatorAddresses = rpcResponse.data.result
@@ -680,3 +693,138 @@ export const getCertificateByTxHash = async (req, res) => {
     })
   }
 }
+
+
+// export const getCertificateByTxHash = async (req, res) => {
+//   const { blockchainTxHash } = req.params
+//   const RPC_URLS = process.env.RPC_URLS.split(',')
+
+//   try {
+//     const provider = await getProvider()
+//     const tx = await provider.getTransaction(blockchainTxHash)
+
+//     if (!tx) {
+//       return res.status(404).json({ message: 'Transaction not found' })
+//     }
+
+//     // Lấy transaction receipt
+//     const receipt = await provider.getTransactionReceipt(blockchainTxHash)
+//     if (!receipt || !receipt.logs) {
+//       return res
+//         .status(404)
+//         .json({ message: 'Transaction receipt not found or has no logs' })
+//     }
+
+//     // Lấy thông tin block từ blockNumber
+//     const block = await provider.getBlock(receipt.blockNumber)
+//     if (!block) {
+//       return res.status(404).json({ message: 'Block not found' })
+//     }
+
+//     // Sử dụng JSON-RPC để lấy danh sách validator đã chấp thuận
+//     const blockNumberHex = `0x${receipt.blockNumber.toString(16)}` // Chuyển blockNumber sang hex
+//     const rpcPayload = {
+//       jsonrpc: '2.0',
+//       method: 'ibft_getValidatorsByBlockNumber',
+//       params: [blockNumberHex],
+//       id: 1
+//     }
+
+//     // Gửi yêu cầu JSON-RPC qua URL từ biến môi trường
+//     const rpcResponse = await axios.post(RPC_URLS[0], rpcPayload)
+
+//     // Kiểm tra phản hồi từ JSON-RPC
+//     if (!rpcResponse.data || !rpcResponse.data.result) {
+//       throw new Error('Không thể lấy danh sách validator từ JSON-RPC')
+//     }
+
+//     const validatorAddresses = rpcResponse.data.result
+
+//     // Kết nối tới smart contract
+//     const contract = await getContract()
+
+//     // Tìm log của sự kiện CertificateAdded
+//     const eventTopic = ethers.keccak256(
+//       ethers.toUtf8Bytes(
+//         'CertificateAdded(bytes32,string,string,string,uint256,string,address)'
+//       )
+//     )
+
+//     const log = receipt.logs.find((log) => log.topics[0] === eventTopic)
+
+//     if (!log) {
+//       return res
+//         .status(404)
+//         .json({ message: 'Certificate not found in transaction logs' })
+//     }
+
+//     // Phân tích log
+//     let parsedLog
+//     try {
+//       parsedLog = contract.interface.parseLog(log)
+//     } catch (err) {
+//       console.error('Error parsing log:', err)
+//       return res
+//         .status(500)
+//         .json({ message: 'Error parsing log', error: err.message })
+//     }
+
+//     // Kiểm tra và xử lý issueDate
+//     let issueDate
+//     if (typeof parsedLog.args.issueDate === 'bigint') {
+//       issueDate = new Date(
+//         Number(parsedLog.args.issueDate) * 1000
+//       ).toISOString()
+//     } else if (parsedLog.args.issueDate._isBigNumber) {
+//       issueDate = new Date(
+//         parsedLog.args.issueDate.toNumber() * 1000
+//       ).toISOString()
+//     } else if (typeof parsedLog.args.issueDate === 'string') {
+//       issueDate = new Date(
+//         parseInt(parsedLog.args.issueDate, 10) * 1000
+//       ).toISOString()
+//     } else if (typeof parsedLog.args.issueDate === 'number') {
+//       issueDate = new Date(parsedLog.args.issueDate * 1000).toISOString()
+//     } else {
+//       throw new Error('Unsupported issueDate format')
+//     }
+
+//     // Tính phí giao dịch
+//     const gasUsed = BigInt(receipt.gasUsed.toString())
+//     const gasPrice = BigInt(tx.gasPrice.toString())
+//     const transactionFee = (gasUsed * gasPrice).toString() // Phí giao dịch bằng Wei
+//     const transactionFeeInEther = ethers.formatEther(transactionFee) // Chuyển sang Ether
+
+//     // Lấy thông tin miner
+//     const miner = block.miner
+
+//     // Tạo đối tượng chứng chỉ
+//     const certificate = {
+//       recipientName: parsedLog.args.recipientName,
+//       courseName: parsedLog.args.courseName,
+//       courseCode: parsedLog.args.courseCode,
+//       issueDate, // Sử dụng issueDate đã xử lý
+//       ipfsCID: parsedLog.args.ipfsCID,
+//       issuer: parsedLog.args.issuer,
+//       certificateId: parsedLog.args.certificateId,
+//       gasUsed: receipt.gasUsed.toString(),
+//       gasPrice: tx.gasPrice.toString(),
+//       transactionFee, // Phí giao dịch tính bằng Wei
+//       transactionFeeInEther, // Phí giao dịch tính bằng Ether
+//       miner, // Thông tin người đào
+//       validatorAddresses, // Địa chỉ các validator
+//       from: tx.from,
+//       to: tx.to,
+//       blockNumber: tx.blockNumber,
+//       transactionHash: tx.hash
+//     }
+
+//     res.status(200).json(certificate)
+//   } catch (error) {
+//     console.error('Error fetching certificate by transaction hash:', error)
+//     res.status(500).json({
+//       message: 'Error fetching certificate by transaction hash',
+//       error: error.message
+//     })
+//   }
+// }
